@@ -2,8 +2,10 @@ import click
 import json
 from pathlib import Path
 from typing import Optional
+import sys
 
 from .rubric_generator import RubricGenerator
+from .exam_analyzer import ExamEvaluator, CCodeAnalyzer
 
 
 @click.group()
@@ -172,23 +174,205 @@ def list_templates(directory: str):
     default="evaluations",
     help="Output directory for evaluation results",
 )
-def evaluate(exam_files, rubric_path: str, output_dir: str):
+@click.option("--verbose", "-v", is_flag=True, help="Show detailed evaluation output")
+def evaluate(exam_files, rubric_path: str, output_dir: str, verbose: bool):
     """Evaluate one or more exam files using a rubric"""
     if not exam_files:
         click.echo("No exam files specified. Use --help for usage.")
         return
 
+    # Load rubric
+    try:
+        with open(rubric_path, "r", encoding="utf-8") as f:
+            rubric_data = json.load(f)
+    except Exception as e:
+        click.echo(f"✗ Error loading rubric {rubric_path}: {e}", err=True)
+        sys.exit(1)
+
     click.echo(f"Evaluating {len(exam_files)} exam file(s)...")
     click.echo(f"Using rubric: {rubric_path}")
 
-    # TODO: Implement actual evaluation logic
-    click.echo("\nEvaluation results will be saved to:")
-    for exam_file in exam_files:
-        exam_name = Path(exam_file).stem
-        output_file = Path(output_dir) / f"{exam_name}_evaluation.json"
-        click.echo(f"  • {exam_file} → {output_file}")
+    # Initialize evaluator
+    analyzer = CCodeAnalyzer()
+    evaluator = ExamEvaluator(analyzer)
 
-    click.echo("\nNote: Evaluation logic not yet implemented.")
+    output_dir_path = Path(output_dir)
+    output_dir_path.mkdir(parents=True, exist_ok=True)
+
+    results = []
+
+    for exam_file in exam_files:
+        exam_path = Path(exam_file)
+        click.echo(f"\n{'=' * 60}")
+        click.echo(f"Evaluating: {exam_path.name}")
+        click.echo(f"{'=' * 60}")
+
+        try:
+            # Evaluate exam
+            evaluation = evaluator.evaluate_exam(exam_path, rubric_data)
+
+            # Save evaluation
+            output_file = output_dir_path / f"{exam_path.stem}_evaluation.json"
+            evaluator.save_evaluation(evaluation, output_file)
+
+            results.append(
+                {
+                    "exam": exam_path.name,
+                    "student": evaluation.student_name,
+                    "points": evaluation.points_earned,
+                    "total": evaluation.total_points,
+                    "percentage": evaluation.grade_percentage,
+                    "output_file": output_file,
+                }
+            )
+
+            # Show summary
+            if verbose:
+                _display_detailed_evaluation(evaluation)
+            else:
+                _display_brief_evaluation(evaluation)
+
+            click.echo(f"✓ Evaluation saved: {output_file}")
+
+        except Exception as e:
+            click.echo(f"✗ Error evaluating {exam_path.name}: {e}", err=True)
+            results.append({"exam": exam_path.name, "error": str(e)})
+
+    # Show final summary
+    _display_final_summary(results)
+
+
+def _display_brief_evaluation(evaluation):
+    """Display brief evaluation summary"""
+    click.echo(f"Student: {evaluation.student_name}")
+    click.echo(
+        f"Score: {evaluation.points_earned:.1f}/{evaluation.total_points:.1f} "
+        f"({evaluation.grade_percentage:.1f}%)"
+    )
+
+    compiles = evaluation.compilation_result.get("compiles", False)
+    status = "✓ Compiles" if compiles else "✗ Does not compile"
+    click.echo(f"Compilation: {status}")
+
+    if not compiles and evaluation.compilation_result.get("errors"):
+        click.echo("  Errors:")
+        for error in evaluation.compilation_result["errors"][:3]:  # Show first 3 errors
+            click.echo(f"    • {error[:100]}...")
+
+
+def _display_detailed_evaluation(evaluation):
+    """Display detailed evaluation results"""
+    click.echo(f"\nStudent: {evaluation.student_name}")
+    click.echo(f"File: {evaluation.exam_file.name}")
+    click.echo(f"{'=' * 60}")
+
+    # Compilation info
+    comp_result = evaluation.compilation_result
+    click.echo("\nCompilation:")
+    click.echo(f"  Status: {'SUCCESS' if comp_result.get('compiles') else 'FAILED'}")
+
+    if comp_result.get("warnings"):
+        click.echo(f"  Warnings: {len(comp_result['warnings'])}")
+        if len(comp_result["warnings"]) <= 5:
+            for warning in comp_result["warnings"]:
+                click.echo(f"    • {warning[:80]}...")
+
+    if comp_result.get("errors"):
+        click.echo(f"  Errors: {len(comp_result['errors'])}")
+        for error in comp_result["errors"][:10]:  # Show first 10 errors
+            click.echo(f"    • {error[:80]}...")
+
+    # Criteria evaluation
+    click.echo(f"\nCriteria Evaluation:")
+    click.echo(f"{'-' * 60}")
+
+    for result in evaluation.evaluation_results:
+        percentage = (
+            (result.points_earned / result.max_points * 100)
+            if result.max_points > 0
+            else 0
+        )
+        status_char = "✓" if percentage >= 80 else "~" if percentage >= 50 else "✗"
+
+        click.echo(f"\n{status_char} {result.criteria_id}")
+        click.echo(f"  {result.criteria_description}")
+        click.echo(
+            f"  Points: {result.points_earned:.1f}/{result.max_points:.1f} ({percentage:.0f}%)"
+        )
+
+        if result.issues:
+            click.echo(f"  Issues found: {len(result.issues)}")
+            for issue in result.issues[:3]:  # Show first 3 issues
+                severity_icon = (
+                    "‼️"
+                    if issue.severity == "error"
+                    else "⚠️"
+                    if issue.severity == "warning"
+                    else "ℹ️"
+                )
+                click.echo(
+                    f"    {severity_icon} Line {issue.line_number}: {issue.description}"
+                )
+
+    # Final score
+    click.echo(f"\n{'=' * 60}")
+    click.echo(
+        f"FINAL SCORE: {evaluation.points_earned:.1f}/{evaluation.total_points:.1f}"
+    )
+    click.echo(f"PERCENTAGE: {evaluation.grade_percentage:.1f}%")
+
+    # Grade letter
+    grade_map = {
+        (90, 100): "A",
+        (80, 90): "B",
+        (70, 80): "C",
+        (60, 70): "D",
+        (0, 60): "F",
+    }
+
+    for (low, high), letter in grade_map.items():
+        if low <= evaluation.grade_percentage < high:
+            click.echo(f"GRADE: {letter}")
+            break
+
+
+def _display_final_summary(results):
+    """Display final summary of all evaluations"""
+    click.echo(f"\n{'=' * 60}")
+    click.echo("EVALUATION SUMMARY")
+    click.echo(f"{'=' * 60}")
+
+    successful = [r for r in results if "error" not in r]
+    failed = [r for r in results if "error" in r]
+
+    if successful:
+        click.echo(f"\nSuccessfully evaluated {len(successful)} exam(s):")
+        click.echo(f"{'-' * 40}")
+
+        for result in successful:
+            click.echo(f"• {result['exam']}")
+            click.echo(f"  Student: {result['student']}")
+            click.echo(
+                f"  Score: {result['points']:.1f}/{result['total']:.1f} "
+                f"({result['percentage']:.1f}%)"
+            )
+            click.echo(f"  Output: {result['output_file'].name}")
+            click.echo()
+
+    if failed:
+        click.echo(f"\nFailed to evaluate {len(failed)} exam(s):")
+        click.echo(f"{'-' * 40}")
+
+        for result in failed:
+            click.echo(f"• {result['exam']}: {result['error']}")
+
+    if successful:
+        avg_percentage = sum(r["percentage"] for r in successful) / len(successful)
+        click.echo(f"\nAverage score: {avg_percentage:.1f}%")
+
+        grades = [r["percentage"] for r in successful]
+        click.echo(f"Highest: {max(grades):.1f}%")
+        click.echo(f"Lowest: {min(grades):.1f}%")
 
 
 if __name__ == "__main__":
