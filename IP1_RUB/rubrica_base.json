@@ -1,0 +1,94 @@
+
+{
+  "rubric": {
+    "name": "Basic",
+    "criteria": [
+      {
+        "id": "comments",
+        "description": "Infractions related to missing or irrelevant comments and formatting errors.",
+        "max_penalty": -0.25,
+        "rules": [
+          {
+            "description": "There are no comments in the code.",
+            "unit_penalty": -0.25
+          }
+        ]
+      },
+      {
+        "id": "data_types",
+        "description": "Errors in the use of data types, onjly if the result make no sence (some times asignation from float to char do not cause much problems).",
+        "max_penalty": -0.25,
+        "rules": [
+          {
+            "description": "An invalid type is used for the required task.",
+            "unit_penalty": -0.25
+          }
+        ]
+      },
+      {
+        "id": "control_flow",
+        "description": "Errors in control structures (reduce -0,25 per ocurrence). Pay more atention to sense less conditions or syntaxc errors than to small logical mistakes.",
+        "max_penalty": -0.50,
+        "rules": [
+          {
+            "description": "Incorrect if/else o loop conditions.",
+            "unit_penalty": -0.25
+          },
+          {
+            "description": "Poorly defined loops",
+            "unit_penalty": -0.25
+          }
+        ]
+      },
+      {
+        "id": "operators",
+        "description": "Incorrect use of arithmetic, logical, or comparison operators.",
+        "max_penalty": -0.50,
+        "rules": [
+          {
+            "description": "'=' is confused with '=='.",
+            "unit_penalty": -0.25
+          },
+          {
+            "description": "Operator precedence is used incorrectly.",
+            "unit_penalty": -0.25
+          },
+          {
+            "description": "Incorrect use of &&, ||, %, / or equivalents.",
+            "unit_penalty": -0.25
+          }
+        ]
+      },
+      {
+        "id": "forbidden_words",
+        "description": "Use of 'goto' or improper use of break/continue.",
+        "max_penalty": -1,
+        "rules": [
+          {
+            "description": "Appearance of 'goto'.",
+            "unit_penalty": -1
+          },
+          {
+            "description": "'break' used outside of a switch.",
+            "unit_penalty": -1
+          },
+          {
+            "description": "'continue' used when it is forbidden in the exercise.",
+            "unit_penalty": -1
+          }
+        ]
+      },
+      {
+        "id": "syntax_errors",
+        "description": "Syntax errors that prevent compilation.",
+        "max_penalty": -1,
+        "rules": [
+          {
+            "description": "Each syntax error that prevents compilation.",
+            "unit_penalty": -0.25
+          }
+        ]
+      }
+    ]
+  }
+}

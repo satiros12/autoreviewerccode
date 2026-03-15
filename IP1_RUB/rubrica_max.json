@@ -1,0 +1,9 @@
+
+{
+  "rubrica_base_1_1.json": -1.0,
+  "rubrica_funcion_2_prompt_function_isHarshadNumber.txt_1.json": -2.0,
+  "rubrica_funcion_2_prompt_function_isNumberEven.txt_1.json": -2.0,
+  "rubrica_funcion_2_prompt_function_scanfNaturalNumber.txt_1.json": -2.0,
+  "rubrica_main_3_1.json": -1.0,
+  "rubrica_modular_1_1.json": -1.0
+}

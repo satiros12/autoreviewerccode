@@ -1,0 +1,22 @@
+[project]
+name = "cexam-grader"
+version = "0.1.0"
+description = "Automatic C exam evaluation and grading system"
+readme = "README.md"
+authors = [
+    { name = "AutoGrader", email = "autograder@example.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "pandas>=2.0.0",
+    "click>=8.0.0",
+    "rich>=13.0.0",
+    "pytest>=7.0.0"
+]
+
+[project.scripts]
+cexam-grader = "src.cexam_grader.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.9.26,<0.10.0"]
+build-backend = "uv_build"

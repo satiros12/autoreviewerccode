@@ -1,0 +1,72 @@
+
+{
+  "rubric": {
+    "name": "Function X",
+    "criteria": [
+      {
+        "id": "header_altered",
+        "description": "The function header must match exactly the specified in types of parameters and return. The matching of the name of the function or the parameter names can be ignored.",
+        "max_penalty": -0.50,
+        "rules": [
+          {
+            "description": "The function parameters number have been altered.",
+            "unit_penalty": -0.25
+          },
+         {
+            "description": "The function parameter types has been altered.",
+            "unit_penalty": -0.25
+          },
+            {
+            "description": "The function return types has been altered.",
+            "unit_penalty": -0.25
+          }
+        ]
+      },
+      {
+        "id": "header_used",
+        "description": "The function must be used in the code.",
+        "max_penalty": -1,
+        "rules": [
+          {
+            "description": "The function is defined but never used.",
+            "unit_penalty": -1
+          }
+        ]
+      },
+      {
+        "id": "implementation_correct",
+        "description": "The implementation must fulfill exactly the purpose of the function. When the implementation is similar but not exact is valid too.",
+        "max_penalty": -2,
+        "rules": [
+          {
+            "description": "The logic is scattered but resolves the essential part (-0,25 per major mistake).",
+            "unit_penalty": -0.25
+          },
+          {
+            "description": "Only part of the purpose is met.",
+            "unit_penalty": -1
+          },
+          {
+            "description": "There is no implementation or it does not fulfill the purpose.",
+            "unit_penalty": -2
+          }
+        ]
+      },
+        {
+        "id": "alternative_implementation",
+        "description": "The function is implemented in another place of the code. This rule works as exception to the previous penality giving a positive grade instead of negative, substituting the previous grades.",
+        "max_penalty": 1,
+        "rules": [
+          {
+            "description": "The functionality of the function is defined in another function or in the main function.",
+            "unit_penalty": 1
+          },
+            {
+            "description": "The functionality is partialy defined in another function or in the main function.",
+            "unit_penalty": 0.5
+          }
+        ]
+      }
+    ]
+  }
+}

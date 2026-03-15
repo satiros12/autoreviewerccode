@@ -1,0 +1,47 @@
+
+
+{
+  "rubric": {
+    "name": "Main",
+    "criteria": [
+      {
+        "id": "main_works",
+        "description": "The main code works correctly without errors that prevent its execution. We can ignore small incompatibilities or special cases.",
+        "max_penalty": -0.5,
+        "rules": [
+          {
+            "description": "The main function does not work correctly.",
+            "unit_penalty": -0.25
+          },
+            {
+            "description": "The main function does not execute the expected flow.",
+            "unit_penalty": -0.25
+          }
+        ]
+      },
+      {
+        "id": "program_solves_problem",
+        "description": "The complete program solves the proposed problem according to the requirements. We can ignore small incompatibilities or special cases or missing of some informative prints.",
+        "max_penalty": -1,
+        "rules": [
+            {
+            "description": "The program is near to the solving of the proposed problem. ",
+            "unit_penalty": -0.25
+          },
+            {
+            "description": "The program is half way to solve the proposed problem. We ignore some error in function definition, considering that the functions work as expected.",
+            "unit_penalty": -0.5
+          },
+            {
+            "description": "The program is far from solving the proposed problem. We ignore some error in function definition, considering that the functions work as expected.",
+            "unit_penalty": -0.75
+          },
+          {
+            "description": "The program is completely different from the proposed problem.",
+            "unit_penalty": -1
+          }
+        ]
+      }
+    ]
+  }
+}

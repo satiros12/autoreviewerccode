@@ -1,0 +1,10 @@
+
+{
+  "rubrica_base_1_1.json": -1.0,
+  "rubrica_funcion_2_prompt_function_initializeData.txt_1.json": -0.5,
+  "rubrica_funcion_2_prompt_function_showTable.txt_1.json": -0.5,
+  "rubrica_funcion_2_prompt_function_totalAlerts.txt_1.json": -1.0,
+  "rubrica_funcion_2_prompt_function_zoneWithMostAlerts.txt_1.json": -3.0,
+  "rubrica_main_3_1.json": -2.0,
+  "rubrica_modular_3_1.json": -1.0
+}
