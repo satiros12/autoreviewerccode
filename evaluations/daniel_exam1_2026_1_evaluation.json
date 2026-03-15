@@ -1,0 +1,94 @@
+{
+  "exam_file": "Exams/daniel_exam1_2026_1.c",
+  "student_name": "Daniel",
+  "total_points": 10,
+  "points_earned": 9,
+  "grade_percentage": 90.0,
+  "evaluation_results": [
+    {
+      "criteria_id": "orden_correcto_correcta_indentac_n_uso_correcto_de_variables",
+      "criteria_description": "Orden correcto, correcta indentacón, Uso correcto de variables — Claridad en la estructura del programa/variables/comentarios",
+      "max_points": 1,
+      "points_earned": 1,
+      "notes": "",
+      "issues": []
+    },
+    {
+      "criteria_id": "declaraci_n_y_usos_tanto_con_operadores_y",
+      "criteria_description": "Declaración y usos tanto con operadores '.' y  '->' — Estructuras",
+      "max_points": 1,
+      "points_earned": 1,
+      "notes": "",
+      "issues": []
+    },
+    {
+      "criteria_id": "introducci_n_presentaci_n_selecci_n",
+      "criteria_description": "Introducción /presentación/selección — Enum y typedef",
+      "max_points": 1,
+      "points_earned": 1,
+      "notes": "",
+      "issues": []
+    },
+    {
+      "criteria_id": "uso_de_argv_como_cadena_y_limitaci_n_del_argc",
+      "criteria_description": "Uso de argv como cadena y limitación del argc — argc/argv",
+      "max_points": 2,
+      "points_earned": 2,
+      "notes": "",
+      "issues": []
+    },
+    {
+      "criteria_id": "invocaci_n_y_cuerpo",
+      "criteria_description": "Invocación y cuerpo — Funciones leeLinea e presentarVideojuegos",
+      "max_points": 1,
+      "points_earned": 1,
+      "notes": "",
+      "issues": []
+    },
+    {
+      "criteria_id": "invocaci_n_y_cuerpo",
+      "criteria_description": "Invocación y cuerpo — Función introducirVideojuego y seleccionarVidejuegos",
+      "max_points": 3,
+      "points_earned": 3,
+      "notes": "",
+      "issues": []
+    },
+    {
+      "criteria_id": "compilaci_n_ejecuci_n_correcta",
+      "criteria_description": "Compilación/ Ejecución correcta",
+      "max_points": 1,
+      "points_earned": 0,
+      "notes": "",
+      "issues": [
+        {
+          "rule_id": "compilation_failed",
+          "description": "Code does not compile",
+          "line_number": 0,
+          "severity": "error",
+          "penalty_applied": -1,
+          "context": ""
+        }
+      ]
+    }
+  ],
+  "compilation": {
+    "compiles": false,
+    "errors": [
+      "Exams/daniel_exam1_2026_1.c:118:9: error: ‘consolestr’ undeclared (first use in this function); did you mean ‘console’?",
+      "Exams/daniel_exam1_2026_1.c:129:9: error: ‘pricestr’ undeclared (first use in this function); did you mean ‘price’?",
+      "Exams/daniel_exam1_2026_1.c:136:9: error: ‘stockstr’ undeclared (first use in this function); did you mean ‘stock’?",
+      "Exams/daniel_exam1_2026_1.c:104:13: error: unused variable ‘stock’ [-Werror=unused-variable]",
+      "Exams/daniel_exam1_2026_1.c:103:15: error: variable ‘price’ set but not used [-Werror=unused-but-set-variable]"
+    ],
+    "warnings": [],
+    "output": "Exams/daniel_exam1_2026_1.c: In function ‘enterVideoGame’:\nExams/daniel_exam1_2026_1.c:118:9: error: ‘consolestr’ undeclared (first use in this function); did you mean ‘console’?\n  118 |         consolestr[2];\n      |         ^~~~~~~~~~\n      |         console\nExams/daniel_exam1_2026_1.c:118:9: note: each undeclared identifier is reported only once for each function it appears in\nExams/daniel_exam1_2026_1.c:129:9: error: ‘pricestr’ undeclared (first use in this function); did you mean ‘price’?\n  129 |         pricestr[16];\n      |         ^~~~~~~~\n      |         price\nExams/daniel_exam1_2026_1.c:136:9: error: ‘stockstr’ undeclared (first use in this function); did you mean ‘stock’?\n  136 |         stockstr[16];\n      |         ^~~~~~~~\n      |         stock\nExams/daniel_exam1_2026_1.c:104:13: error: unused variable ‘stock’ [-Werror=unused-variable]\n  104 |         int stock;\n      |             ^~~~~\nExams/daniel_exam1_2026_1.c:103:15: error: variable ‘price’ set but not used [-Werror=unused-but-set-variable]\n  103 |         float price;\n      |               ^~~~~\ncc1: all warnings being treated as errors\n",
+    "executable_path": null
+  },
+  "summary": {
+    "total_issues": 1,
+    "critical_issues": 1,
+    "grade_letter": "A",
+    "compilation_status": "FAILED",
+    "warnings_count": 0
+  }
+}

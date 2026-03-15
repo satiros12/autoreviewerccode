@@ -407,8 +407,13 @@ class ExamEvaluator:
         # Analyze code structure
         structure_issues = self.analyzer.analyze_code_structure(exam_file)
 
-        # Get rubric criteria
-        rubric_criteria = rubric_data.get("rubric", {}).get("criteria", [])
+        # Get rubric criteria - handle both formats
+        if isinstance(rubric_data, list):
+            # Format like evaluation.json - list of criteria
+            rubric_criteria = self._convert_list_format_to_criteria(rubric_data)
+        else:
+            # Format like IP1_RUB files - dict with 'rubric' key
+            rubric_criteria = rubric_data.get("rubric", {}).get("criteria", [])
 
         # Evaluate each criteria
         total_points = 0
@@ -567,3 +572,46 @@ class ExamEvaluator:
             return "D"
         else:
             return "F"
+
+    def _convert_list_format_to_criteria(
+        self, criteria_list: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """Convert evaluation.json format to IP1_RUB format"""
+        converted_criteria = []
+
+        for i, crit in enumerate(criteria_list):
+            # Generate ID from title
+            title = crit.get("titulo", "")
+            clean_id = re.sub(r"[^a-zA-Z0-9]", "_", title.lower())
+            clean_id = re.sub(r"_+", "_", clean_id).strip("_")
+            if not clean_id:
+                clean_id = f"criteria_{i}"
+
+            # Convert subapartados to rules
+            rules = []
+            subapartados = crit.get("subapartados", [])
+
+            for sub in subapartados:
+                rule = {
+                    "description": sub.get("descripcion", ""),
+                    "unit_penalty": -sub.get("puntos", 0.0),  # Negative for penalties
+                }
+
+                if sub.get("anulador"):
+                    rule["severity"] = "error"
+
+                rules.append(rule)
+
+            # Add the criteria
+            converted_criteria.append(
+                {
+                    "id": clean_id,
+                    "description": crit.get("descripcion", ""),
+                    "max_penalty": -crit.get(
+                        "nota_maxima", 0.0
+                    ),  # Negative for penalties
+                    "rules": rules,
+                }
+            )
+
+        return converted_criteria
