@@ -1,0 +1,17 @@
+[project]
+name = "cexams"
+version = "0.1.0"
+description = "CExams - Exam evaluation and analysis system"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.uv]
+dev-dependencies = []
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cexams"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
