@@ -1,22 +1,10 @@
 import os
-import json
-import time
-from flask import (
-    Flask,
-    render_template,
-    request,
-    redirect,
-    url_for,
-    send_from_directory,
-    jsonify,
-    flash,
-)
-from werkzeug.utils import secure_filename
+from flask import Flask, render_template, request, flash
 
 from config import SECRET_KEY, EXAMS_DIR, CRITERIA_DIR, REVIEWS_DIR
 from routes.main import main_bp
 from routes.api import api_bp
-from services.evaluator import ExamEvaluator
+from services import ExamEvaluator
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY

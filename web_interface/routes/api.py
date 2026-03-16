@@ -1,10 +1,9 @@
-from flask import Blueprint, request, jsonify, render_template
+from flask import Blueprint, request, jsonify
 import os
 import json
-import time
 
 from config import EXAMS_DIR, CRITERIA_DIR, REVIEWS_DIR
-from services.evaluator import ExamEvaluator
+from services import ExamEvaluator
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 
