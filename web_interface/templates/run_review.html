@@ -1,6 +1,66 @@
 {% extends "base.html" %}
 {% block title %}Run Review{% endblock %}
 
+{% block extra_css %}
+<style>
+    .loading-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+    }
+    .loading-overlay.active {
+        display: flex;
+    }
+    .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 5px solid #f3f3f3;
+        border-top: 5px solid #3498db;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    .loading-content {
+        color: white;
+        text-align: center;
+        margin-top: 2rem;
+    }
+    .loading-progress {
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+    .loading-detail {
+        color: #aaa;
+    }
+    .loading-bar-container {
+        width: 300px;
+        height: 20px;
+        background: #333;
+        border-radius: 10px;
+        margin-top: 1rem;
+        overflow: hidden;
+    }
+    .loading-bar {
+        height: 100%;
+        background: #3498db;
+        width: 0%;
+        transition: width 0.3s ease;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="card">
     <h2>Run Evaluation</h2>
@@ -16,10 +76,10 @@
 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
     <div class="card">
         <h3>Single Exam Review</h3>
-        <form method="post">
+        <form method="post" id="single-form">
             <div class="form-group">
                 <label>Select Exam:</label>
-                <select name="exam" required>
+                <select name="exam" id="single-exam" required>
                     <option value="">-- Select Exam --</option>
                     {% for exam in exam_files %}
                     <option value="{{ exam }}" {% if selected_exam == exam %}selected{% endif %}>{{ exam }}</option>
@@ -28,45 +88,200 @@
             </div>
             <div class="form-group">
                 <label>Select Criteria:</label>
-                <select name="criteria" required>
+                <select name="criteria" id="single-criteria" required>
                     <option value="">-- Select Criteria --</option>
                     {% for criteria in criteria_files %}
                     <option value="{{ criteria }}" {% if selected_criteria == criteria %}selected{% endif %}>{{ criteria }}</option>
                     {% endfor %}
                 </select>
             </div>
-            <button type="submit" name="run_single" class="btn btn-success">Run Single Review</button>
+            <button type="button" name="run_single" class="btn btn-success" onclick="runSingleReview()">Run Single Review</button>
         </form>
     </div>
 
     <div class="card">
         <h3>Batch Review</h3>
         <p>Run evaluation for all exams with selected criteria</p>
-        <form method="post">
+        <form method="post" id="batch-form">
             <div class="form-group">
                 <label>Select Criteria:</label>
-                <select name="criteria_batch" required>
+                <select name="criteria_batch" id="batch-criteria" required>
                     <option value="">-- Select Criteria --</option>
                     {% for criteria in criteria_files %}
                     <option value="{{ criteria }}" {% if selected_criteria == criteria %}selected{% endif %}>{{ criteria }}</option>
                     {% endfor %}
                 </select>
             </div>
-            <button type="submit" name="run_all" class="btn btn-success">Run All Exams</button>
+            <button type="button" name="run_all" class="btn btn-success" onclick="runBatchReview()">Run All Exams</button>
         </form>
         <p style="margin-top: 1rem; color: #666;">Available exams: {{ exam_files|length }}</p>
     </div>
 </div>
 
-{% if result %}
-<div class="card">
-    <h3>Result</h3>
-    <p><strong>Exam:</strong> {{ result.exam_name }}</p>
-    <p><strong>Score:</strong> {{ result.overall_score }} / {{ result.maximum_possible_score }}</p>
-    <p><strong>Criteria Evaluated:</strong> {{ result.total_criteria }}</p>
-    <a href="/review/{{ result.exam_file }}_review.json" class="btn">View Full Review</a>
+<div id="results-area">
+    {% if result %}
+    <div class="card">
+        <h3>Result</h3>
+        <p><strong>Exam:</strong> {{ result.exam_name }}</p>
+        <p><strong>Score:</strong> {{ result.overall_score }} / {{ result.maximum_possible_score }}</p>
+        <p><strong>Criteria Evaluated:</strong> {{ result.total_criteria }}</p>
+        <a href="/review/{{ result.exam_file }}_review.json" class="btn">View Full Review</a>
+    </div>
+    {% endif %}
 </div>
-{% endif %}
+
+<div class="loading-overlay" id="loading-overlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-content">
+        <div class="loading-progress" id="loading-progress">Processing...</div>
+        <div class="loading-detail" id="loading-detail"></div>
+        <div class="loading-bar-container">
+            <div class="loading-bar" id="loading-bar"></div>
+        </div>
+    </div>
+</div>
 
 <a href="/" class="btn">Back to Home</a>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let isRunning = false;
+
+function showLoading(exam, criteria, progress, total) {
+    const overlay = document.getElementById('loading-overlay');
+    const progressEl = document.getElementById('loading-progress');
+    const detailEl = document.getElementById('loading-detail');
+    const barEl = document.getElementById('loading-bar');
+    
+    overlay.classList.add('active');
+    progressEl.textContent = progress;
+    detailEl.textContent = `Exam: ${exam} | Criteria: ${criteria}`;
+    
+    const percentage = (progress.split('/')[0].trim() / total) * 100 || 0;
+    barEl.style.width = percentage + '%';
+}
+
+function hideLoading() {
+    const overlay = document.getElementById('loading-overlay');
+    overlay.classList.remove('active');
+    isRunning = false;
+}
+
+function runSingleReview() {
+    const exam = document.getElementById('single-exam').value;
+    const criteria = document.getElementById('single-criteria').value;
+    
+    if (!exam || !criteria) {
+        alert('Please select both exam and criteria');
+        return;
+    }
+    
+    if (isRunning) return;
+    isRunning = true;
+    
+    showLoading(exam, criteria, 'Processing...', 1);
+    
+    fetch('/api/run/single', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({exam_file: exam, criteria_file: criteria})
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        if (data.success) {
+            showResult(data.result);
+            alert('Review completed successfully!');
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(err => {
+        hideLoading();
+        alert('Error: ' + err);
+    });
+}
+
+function runBatchReview() {
+    const criteria = document.getElementById('batch-criteria').value;
+    
+    if (!criteria) {
+        alert('Please select criteria');
+        return;
+    }
+    
+    if (isRunning) return;
+    isRunning = true;
+    
+    const examCount = {{ exam_files|length }};
+    let currentExam = 0;
+    
+    function processNextExam(examFiles) {
+        if (currentExam >= examFiles.length) {
+            hideLoading();
+            alert('Batch review completed!');
+            window.location.href = '/reviews';
+            return;
+        }
+        
+        const exam = examFiles[currentExam];
+        showLoading(exam, criteria, `Exam ${currentExam + 1}/${examCount}`, examCount);
+        
+        fetch('/api/run/single', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({exam_file: exam, criteria_file: criteria})
+        })
+        .then(response => response.json())
+        .then(data => {
+            currentExam++;
+            if (data.success) {
+                processNextExam(examFiles);
+            } else {
+                console.error('Error processing ' + exam + ': ' + data.error);
+                processNextExam(examFiles);
+            }
+        })
+        .catch(err => {
+            console.error('Error: ' + err);
+            currentExam++;
+            processNextExam(examFiles);
+        });
+    }
+    
+    fetch('/exams')
+    .then(response => response.text())
+    .then(html => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const examOptions = doc.querySelectorAll('#single-exam option');
+        const examFiles = [];
+        examOptions.forEach(opt => {
+            if (opt.value) examFiles.push(opt.value);
+        });
+        
+        if (examFiles.length === 0) {
+            alert('No exams found');
+            hideLoading();
+            return;
+        }
+        
+        processNextExam(examFiles);
+    });
+}
+
+function showResult(result) {
+    const resultsArea = document.getElementById('results-area');
+    resultsArea.innerHTML = `
+        <div class="card">
+            <h3>Result</h3>
+            <p><strong>Exam:</strong> ${result.exam_name}</p>
+            <p><strong>Score:</strong> ${result.overall_score} / ${result.maximum_possible_score}</p>
+            <p><strong>Criteria Evaluated:</strong> ${result.total_criteria}</p>
+            <a href="/review/${result.exam_file}_review.json" class="btn">View Full Review</a>
+        </div>
+    `;
+}
+</script>
 {% endblock %}

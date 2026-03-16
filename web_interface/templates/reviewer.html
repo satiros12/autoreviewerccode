@@ -3,45 +3,58 @@
 
 {% block extra_css %}
 <style>
-    .reviewer-container { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; height: calc(100vh - 200px); }
+    .reviewer-container { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; min-height: calc(100vh - 200px); }
     .reviewer-panel { background: white; padding: 1rem; border-radius: 8px; overflow-y: auto; }
-    .code-panel { background: #282c34; color: #abb2bf; padding: 1rem; border-radius: 8px; overflow-y: auto; max-height: 100%; }
-    .code-panel pre { margin: 0; white-space: pre-wrap; word-wrap: break-word; }
-    .nav-bar { display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; }
-    .nav-info { flex-grow: 1; }
+    .code-panel { background: #282c34; color: #abb2bf; padding: 1rem; border-radius: 8px; overflow-y: auto; max-height: calc(100vh - 220px); }
+    .code-panel pre { margin: 0; white-space: pre-wrap; word-wrap: break-word; font-size: 0.85rem; }
+    .nav-bar { display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; }
+    .nav-info { flex-grow: 1; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+    .nav-info label { display: flex; align-items: center; gap: 0.5rem; }
+    .nav-info select { padding: 0.3rem; border-radius: 4px; border: 1px solid #ddd; }
     .criteria-display { background: #f8f9fa; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; border-left: 4px solid #3498db; }
-    .subsection-edit { background: white; padding: 1rem; margin: 0.5rem 0; border-radius: 4px; border: 1px solid #ddd; }
-    .subsection-edit label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
-    .subsection-edit input, .subsection-edit textarea { width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; }
+    .criteria-display h4 { margin-bottom: 0.5rem; }
+    .criteria-display p { color: #666; font-size: 0.9rem; margin-bottom: 0.5rem; }
     .score-badge { display: inline-block; background: #3498db; color: white; padding: 0.2rem 0.5rem; border-radius: 3px; margin-left: 0.5rem; }
     .loading { text-align: center; padding: 2rem; color: #666; }
-    .btn-nav { padding: 0.5rem 1rem; }
+    .btn-nav { padding: 0.4rem 0.8rem; font-size: 0.9rem; }
     .btn-save { background: #27ae60; }
     .btn-prev { background: #95a5a6; }
     .btn-next { background: #3498db; }
+    .evaluation-form { background: white; padding: 1rem; border-radius: 8px; border: 1px solid #ddd; }
+    .evaluation-form .form-group { margin-bottom: 1rem; }
+    .evaluation-form label { display: block; margin-bottom: 0.3rem; font-weight: 500; }
+    .evaluation-form input, .evaluation-form textarea { width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; }
+    .evaluation-form textarea { resize: vertical; }
+    .auto-score { color: #27ae60; font-weight: bold; }
+    .nav-buttons { display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; }
+    .position-info { background: #e8f4f8; padding: 0.5rem 1rem; border-radius: 4px; font-weight: 500; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="card">
-    <h2>Interactive Reviewer</h2>
+<div class="card" style="margin-bottom: 1rem;">
+    <div class="nav-bar">
+        <h2 style="margin: 0;">Interactive Reviewer</h2>
+        <div class="position-info" id="position-info">Loading...</div>
+    </div>
     <div class="nav-bar">
         <div class="nav-info">
-            <label>Exam: 
+            <label>
+                Exam:
                 <select id="exam-select" onchange="loadReviewerData()">
                     {% for exam in exam_files %}
                     <option value="{{ loop.index0 }}">{{ exam }}</option>
                     {% endfor %}
                 </select>
             </label>
-            <label>Criteria: 
+            <label>
+                Criteria:
                 <select id="criteria-select" onchange="loadReviewerData()">
                     {% for criteria in criteria_files %}
                     <option value="{{ loop.index0 }}">{{ criteria }}</option>
                     {% endfor %}
                 </select>
             </label>
-            <span id="position-info"></span>
         </div>
     </div>
 </div>
@@ -51,42 +64,45 @@
     <p>{{ error }}</p>
 </div>
 {% else %}
-<div id="reviewer-content" class="reviewer-container">
+<div class="reviewer-container">
     <div class="reviewer-panel code-panel">
         <h3>Exam Code</h3>
-        <pre><code id="exam-code">{{ exam_content }}</code></pre>
+        <pre><code id="exam-code">Loading...</code></pre>
     </div>
     
     <div class="reviewer-panel">
+        <h3>Current Criteria Evaluation</h3>
         <div id="criteria-section">
-            <h3>Current Criteria</h3>
             <div id="current-criteria"></div>
             
-            <h4>Evaluation</h4>
-            <form id="evaluation-form">
-                <div class="form-group">
-                    <label>Awarded Score:</label>
-                    <input type="number" id="awarded-score" step="0.1" min="0">
-                </div>
-                <div class="form-group">
-                    <label>Justification:</label>
-                    <textarea id="justification" rows="3"></textarea>
-                </div>
-                
-                <h5>Subsection Evaluations</h5>
-                <div id="subsection-evaluations"></div>
-                
-                <div style="display: flex; gap: 1rem; margin-top: 1rem;">
-                    <button type="button" class="btn btn-save" onclick="saveEvaluation()">Save & Stay</button>
-                    <button type="button" class="btn btn-prev" onclick="prevCriteria()">Previous Criteria</button>
-                    <button type="button" class="btn btn-next" onclick="nextCriteria()">Next Criteria</button>
-                </div>
-            </form>
-        </div>
-        
-        <div style="margin-top: 1rem; display: flex; gap: 1rem;">
-            <button type="button" class="btn" onclick="prevExam()">Previous Exam (Same Criteria)</button>
-            <button type="button" class="btn" onclick="nextExam()">Next Exam (Same Criteria)</button>
+            <div class="evaluation-form">
+                <h4>Edit Evaluation</h4>
+                <form id="evaluation-form">
+                    <div class="form-group">
+                        <label>Maximum Score:</label>
+                        <input type="text" id="max-score" readonly style="background: #f0f0f0;">
+                    </div>
+                    <div class="form-group">
+                        <label>Awarded Score:</label>
+                        <input type="number" id="awarded-score" step="0.1" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Justification:</label>
+                        <textarea id="justification" rows="4" placeholder="Enter your evaluation justification..."></textarea>
+                    </div>
+                    
+                    <div class="nav-buttons">
+                        <button type="button" class="btn btn-save btn-nav" onclick="saveEvaluation()">Save</button>
+                        <button type="button" class="btn btn-prev btn-nav" onclick="prevCriteria()">Prev Criteria</button>
+                        <button type="button" class="btn btn-next btn-nav" onclick="nextCriteria()">Next Criteria</button>
+                    </div>
+                </form>
+            </div>
+            
+            <div style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <button type="button" class="btn btn-nav" onclick="prevExam()">Prev Exam</button>
+                <button type="button" class="btn btn-nav" onclick="nextExam()">Next Exam</button>
+            </div>
         </div>
     </div>
 </div>
@@ -99,7 +115,10 @@ function loadReviewerData() {
     const examIdx = document.getElementById('exam-select').value;
     const criteriaIdx = document.getElementById('criteria-select').value;
     
-    fetch(`/reviewer/data?exam_idx=${examIdx}&criteria_idx=${criteriaIdx}`)
+    document.getElementById('exam-code').textContent = 'Loading...';
+    document.getElementById('current-criteria').innerHTML = '<div class="loading">Loading...</div>';
+    
+    fetch(`/api/reviewer/data?exam_idx=${examIdx}&criteria_idx=${criteriaIdx}`)
         .then(response => response.json())
         .then(data => {
             if (data.error) {
@@ -109,7 +128,10 @@ function loadReviewerData() {
             currentData = data;
             renderData();
         })
-        .catch(err => console.error('Error loading data:', err));
+        .catch(err => {
+            console.error('Error loading data:', err);
+            alert('Error loading data');
+        });
 }
 
 function renderData() {
@@ -117,36 +139,32 @@ function renderData() {
     
     document.getElementById('exam-code').textContent = currentData.exam_content;
     document.getElementById('position-info').textContent = 
-        `Exam ${currentData.exam_idx + 1}/${currentData.total_exams}, Criteria ${currentData.criteria_idx + 1}/${currentData.total_criteria}`;
+        `Exam ${currentData.exam_idx + 1}/${currentData.total_exams} | Criteria ${currentData.criteria_idx + 1}/${currentData.total_criteria}`;
     
     const criteria = currentData.current_criteria;
+    const evaluation = currentData.current_evaluation;
+    
     let criteriaHtml = `
         <div class="criteria-display">
-            <h4>${criteria.titulo || 'Untitled'}</h4>
+            <h4>${criteria.titulo || 'Untitled'} <span class="score-badge">Max: ${criteria.nota_maxima || 0}</span></h4>
             <p>${criteria.descripcion || ''}</p>
-            <span class="score-badge">Max: ${criteria.nota_maxima || 0}</span>
         </div>
     `;
     
-    if (criteria.subapartados) {
-        criteriaHtml += '<h5>Subsections:</h5>';
+    if (criteria.subapartados && criteria.subapartados.length > 0) {
+        criteriaHtml += '<h5>Subsections (Read-only):</h5>';
         criteria.subapartados.forEach((sub, idx) => {
+            let evalSub = null;
+            if (evaluation && evaluation.subsection_evaluations) {
+                evalSub = evaluation.subsection_evaluations.find(e => e.subsection_name === sub.nombre);
+            }
             criteriaHtml += `
-                <div class="subsection-edit">
-                    <label>${sub.nombre || 'Untitled'}</label>
-                    <p style="font-size: 0.9rem; color: #666;">${sub.descripcion || ''}</p>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
-                        <div>
-                            <label>Points:</label>
-                            <input type="number" id="sub-points-${idx}" value="${sub.puntos || 0}" step="0.1" min="0">
-                        </div>
-                        <div>
-                            <label>Awarded:</label>
-                            <input type="number" id="sub-awarded-${idx}" value="0" step="0.1" min="0">
-                        </div>
-                    </div>
-                    <label>Reasoning:</label>
-                    <textarea id="sub-reasoning-${idx}" rows="2"></textarea>
+                <div style="background: #f8f9fa; padding: 0.5rem; margin: 0.3rem 0; border-radius: 4px; font-size: 0.85rem;">
+                    <strong>${sub.nombre || 'Untitled'}</strong>
+                    <span style="color: #666;">(${sub.puntos || 0} pts)</span>
+                    ${sub.anulador ? '<span class="score-badge" style="background: #e74c3c;">NULLIFIER</span>' : ''}
+                    <p style="margin: 0.2rem 0; color: #666;">${sub.descripcion || ''}</p>
+                    ${evalSub ? `<p style="margin: 0; color: #27ae60;">Awarded: ${evalSub.awarded_points}/${sub.puntos}</p>` : ''}
                 </div>
             `;
         });
@@ -154,20 +172,11 @@ function renderData() {
     
     document.getElementById('current-criteria').innerHTML = criteriaHtml;
     
-    const review = currentData.review_data;
-    if (review && review.criteria_evaluations && review.criteria_evaluations[currentData.criteria_idx]) {
-        const eval = review.criteria_evaluations[currentData.criteria_idx];
-        document.getElementById('awarded-score').value = eval.awarded_score || 0;
-        document.getElementById('justification').value = eval.justification || '';
-        
-        if (eval.subsection_evaluations) {
-            eval.subsection_evaluations.forEach((sub, idx) => {
-                const awardedEl = document.getElementById(`sub-awarded-${idx}`);
-                const reasoningEl = document.getElementById(`sub-reasoning-${idx}`);
-                if (awardedEl) awardedEl.value = sub.awarded_points || 0;
-                if (reasoningEl) reasoningEl.value = sub.reasoning || '';
-            });
-        }
+    document.getElementById('max-score').value = criteria.nota_maxima || 0;
+    
+    if (evaluation) {
+        document.getElementById('awarded-score').value = evaluation.awarded_score || 0;
+        document.getElementById('justification').value = evaluation.justification || '';
     } else {
         document.getElementById('awarded-score').value = 0;
         document.getElementById('justification').value = '';
@@ -189,18 +198,18 @@ function saveEvaluation() {
     };
     
     if (criteria.subapartados) {
-        criteria.subapartados.forEach((sub, idx) => {
+        criteria.subapartados.forEach(sub => {
             evaluation.subsection_evaluations.push({
                 subsection_name: sub.nombre,
                 subsection_description: sub.descripcion,
                 possible_points: sub.puntos,
-                awarded_points: parseFloat(document.getElementById(`sub-awarded-${idx}`).value) || 0,
-                reasoning: document.getElementById(`sub-reasoning-${idx}`).value || ''
+                awarded_points: 0,
+                reasoning: ''
             });
         });
     }
     
-    fetch('/reviewer/save-evaluation', {
+    fetch('/api/reviewer/save-evaluation', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
