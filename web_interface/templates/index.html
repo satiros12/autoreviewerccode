@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}CExams - Home{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Welcome to CExams</h2>
+    <p>AI-powered C programming exam evaluation system</p>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem;">
+    <div class="card">
+        <h3>Upload Exams</h3>
+        <p>Upload .c exam files for evaluation</p>
+        <form action="/upload/exams" method="post" enctype="multipart/form-data" style="margin-top: 1rem;">
+            <div class="form-group">
+                <input type="file" name="files[]" multiple accept=".c" required>
+            </div>
+            <button type="submit" class="btn">Upload Exams</button>
+        </form>
+        <p style="margin-top: 0.5rem; color: #666; font-size: 0.9rem;">Currently: {{ exam_count }} exam files</p>
+    </div>
+
+    <div class="card">
+        <h3>Upload Criteria</h3>
+        <p>Upload evaluation criteria JSON file</p>
+        <form action="/upload/criteria" method="post" enctype="multipart/form-data" style="margin-top: 1rem;">
+            <div class="form-group">
+                <input type="file" name="file" accept=".json" required>
+            </div>
+            <button type="submit" class="btn">Upload Criteria</button>
+        </form>
+        <p style="margin-top: 0.5rem; color: #666; font-size: 0.9rem;">Currently: {{ criteria_count }} criteria files</p>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Quick Stats</h3>
+    <table>
+        <tr>
+            <th>Type</th>
+            <th>Count</th>
+            <th>Actions</th>
+        </tr>
+        <tr>
+            <td>Exam Files</td>
+            <td>{{ exam_count }}</td>
+            <td><a href="/exams" class="btn">View</a></td>
+        </tr>
+        <tr>
+            <td>Criteria Files</td>
+            <td>{{ criteria_count }}</td>
+            <td><a href="/criteria" class="btn">View</a></td>
+        </tr>
+        <tr>
+            <td>Review Files</td>
+            <td>{{ review_count }}</td>
+            <td><a href="/reviews" class="btn">View</a></td>
+        </tr>
+    </table>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem;">
+    <a href="/exams" class="btn" style="text-align: center;">Manage Exams</a>
+    <a href="/criteria" class="btn" style="text-align: center;">Manage Criteria</a>
+    <a href="/reviews" class="btn" style="text-align: center;">View Reviews</a>
+    <a href="/run" class="btn btn-success" style="text-align: center;">Run Evaluation</a>
+    <a href="/reviewer" class="btn btn-danger" style="text-align: center;">Interactive Reviewer</a>
+</div>
+{% endblock %}

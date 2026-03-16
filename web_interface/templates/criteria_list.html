@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Criteria Files{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Evaluation Criteria</h2>
+    <p>Manage your evaluation criteria JSON files</p>
+</div>
+
+<div class="card">
+    <h3>Upload New Criteria</h3>
+    <form action="/upload/criteria" method="post" enctype="multipart/form-data">
+        <div class="form-group">
+            <input type="file" name="file" accept=".json" required>
+        </div>
+        <button type="submit" class="btn">Upload</button>
+    </form>
+</div>
+
+{% if criteria_files %}
+<div class="card">
+    <h3>Available Criteria ({{ criteria_files|length }})</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Filename</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for file in criteria_files %}
+            <tr>
+                <td><a href="/criteria/{{ file }}">{{ file }}</a></td>
+                <td class="actions">
+                    <a href="/criteria/{{ file }}" class="btn">Edit</a>
+                    <a href="/delete/criteria/{{ file }}" class="btn btn-danger" onclick="return confirm('Delete {{ file }}?')">Delete</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="card">
+    <p>No criteria files uploaded yet.</p>
+</div>
+{% endif %}
+
+<a href="/" class="btn">Back to Home</a>
+{% endblock %}

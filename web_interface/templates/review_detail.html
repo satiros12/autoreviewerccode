@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Review: {{ review.exam_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .review-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .criteria-card { background: white; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; border-left: 4px solid #3498db; }
+    .score { font-size: 1.5rem; font-weight: bold; color: #27ae60; }
+    .subsection { background: #f8f9fa; padding: 0.5rem; margin: 0.5rem 0; border-radius: 4px; }
+    .points { float: right; font-weight: bold; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Review: {{ review.exam_name }}</h2>
+    <p class="score">{{ review.overall_score }} / {{ review.maximum_possible_score }}</p>
+    <a href="/review/{{ review.exam_file }}_review.json/download" class="btn">Download JSON</a>
+</div>
+
+<div class="review-grid">
+    <div>
+        <div class="card">
+            <h3>Exam Code</h3>
+            <pre><code>{{ exam_content }}</code></pre>
+        </div>
+    </div>
+    
+    <div>
+        {% for eval in review.criteria_evaluations %}
+        <div class="criteria-card">
+            <h4>{{ eval.criteria_title }}</h4>
+            <p>{{ eval.criteria_description }}</p>
+            <p><strong>Score:</strong> {{ eval.awarded_score }} / {{ eval.maximum_score }}</p>
+            <p><strong>Justification:</strong> {{ eval.justification }}</p>
+            
+            {% if eval.subsection_evaluations %}
+            <div class="subsections">
+                <h5>Subsections:</h5>
+                {% for sub in eval.subsection_evaluations %}
+                <div class="subsection">
+                    <span class="points">{{ sub.awarded_points }}/{{ sub.possible_points }}</span>
+                    <strong>{{ sub.subsection_name }}</strong>
+                    <p>{{ sub.subsection_description }}</p>
+                    <small>{{ sub.reasoning }}</small>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<a href="/reviews" class="btn">Back to Reviews</a>
+{% endblock %}

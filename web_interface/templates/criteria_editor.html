@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Edit: {{ filename }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .editor-container { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .editor-box { background: white; padding: 1rem; border-radius: 8px; }
+    textarea { width: 100%; height: 500px; font-family: monospace; padding: 0.5rem; }
+    .preview { background: #f8f9fa; padding: 1rem; border-radius: 4px; max-height: 500px; overflow-y: auto; }
+    .criteria-item { background: white; padding: 1rem; margin-bottom: 1rem; border-radius: 4px; border-left: 4px solid #3498db; }
+    .subsection { background: #f8f9fa; padding: 0.5rem; margin: 0.5rem 0; border-radius: 4px; }
+    .nullifier { border-left: 4px solid #e74c3c; }
+    .score-badge { background: #3498db; color: white; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.9rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Edit: {{ filename }}</h2>
+    <form action="/criteria/{{ filename }}/save" method="post">
+        <div class="form-group">
+            <label>JSON Content:</label>
+            <textarea name="content" id="json-editor">{{ content }}</textarea>
+        </div>
+        <button type="submit" class="btn btn-success">Save Changes</button>
+        <a href="/criteria" class="btn">Cancel</a>
+    </form>
+</div>
+
+<div class="card">
+    <h3>Preview</h3>
+    <div id="preview" class="preview">
+        {% if criteria %}
+            {% for item in criteria %}
+            <div class="criteria-item">
+                <h4>{{ item.titulo }}</h4>
+                <p>{{ item.descripcion }}</p>
+                <span class="score-badge">Max: {{ item.nota_maxima }}</span>
+                
+                {% if item.subapartados %}
+                <div class="subsections">
+                    {% for sub in item.subapartados %}
+                    <div class="subsection {% if sub.anulador %}nullifier{% endif %}">
+                        <strong>{{ sub.nombre }}</strong>
+                        <p>{{ sub.descripcion }}</p>
+                        <small>Points: {{ sub.puntos }}{% if sub.anulador %} [NULLIFIER]{% endif %}</small>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        {% else %}
+            <p>Invalid JSON - cannot preview</p>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+const editor = document.getElementById('json-editor');
+const preview = document.getElementById('preview');
+
+function updatePreview() {
+    try {
+        const data = JSON.parse(editor.value);
+        let html = '';
+        
+        data.forEach((item, idx) => {
+            html += `<div class="criteria-item">
+                <h4>${item.titulo || 'Untitled'}</h4>
+                <p>${item.descripcion || ''}</p>
+                <span class="score-badge">Max: ${item.nota_maxima || 0}</span>`;
+            
+            if (item.subapartados) {
+                html += '<div class="subsections">';
+                item.subapartados.forEach(sub => {
+                    html += `<div class="subsection ${sub.anulador ? 'nullifier' : ''}">
+                        <strong>${sub.nombre || 'Untitled'}</strong>
+                        <p>${sub.descripcion || ''}</p>
+                        <small>Points: ${sub.puntos || 0}${sub.anulador ? ' [NULLIFIER]' : ''}</small>
+                    </div>`;
+                });
+                html += '</div>';
+            }
+            html += '</div>';
+        });
+        
+        preview.innerHTML = html;
+    } catch (e) {
+        preview.innerHTML = '<p style="color: red;">Invalid JSON: ' + e.message + '</p>';
+    }
+}
+
+editor.addEventListener('input', updatePreview);
+updatePreview();
+</script>
+{% endblock %}

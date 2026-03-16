@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Run Review{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Run Evaluation</h2>
+    <p>Execute automatic exam evaluation</p>
+</div>
+
+{% if error %}
+<div class="card" style="background: #f8d7da; border: 1px solid #f5c6cb;">
+    <p style="color: #721c24;">Error: {{ error }}</p>
+</div>
+{% endif %}
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+    <div class="card">
+        <h3>Single Exam Review</h3>
+        <form method="post">
+            <div class="form-group">
+                <label>Select Exam:</label>
+                <select name="exam" required>
+                    <option value="">-- Select Exam --</option>
+                    {% for exam in exam_files %}
+                    <option value="{{ exam }}" {% if selected_exam == exam %}selected{% endif %}>{{ exam }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Select Criteria:</label>
+                <select name="criteria" required>
+                    <option value="">-- Select Criteria --</option>
+                    {% for criteria in criteria_files %}
+                    <option value="{{ criteria }}" {% if selected_criteria == criteria %}selected{% endif %}>{{ criteria }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" name="run_single" class="btn btn-success">Run Single Review</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h3>Batch Review</h3>
+        <p>Run evaluation for all exams with selected criteria</p>
+        <form method="post">
+            <div class="form-group">
+                <label>Select Criteria:</label>
+                <select name="criteria_batch" required>
+                    <option value="">-- Select Criteria --</option>
+                    {% for criteria in criteria_files %}
+                    <option value="{{ criteria }}" {% if selected_criteria == criteria %}selected{% endif %}>{{ criteria }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" name="run_all" class="btn btn-success">Run All Exams</button>
+        </form>
+        <p style="margin-top: 1rem; color: #666;">Available exams: {{ exam_files|length }}</p>
+    </div>
+</div>
+
+{% if result %}
+<div class="card">
+    <h3>Result</h3>
+    <p><strong>Exam:</strong> {{ result.exam_name }}</p>
+    <p><strong>Score:</strong> {{ result.overall_score }} / {{ result.maximum_possible_score }}</p>
+    <p><strong>Criteria Evaluated:</strong> {{ result.total_criteria }}</p>
+    <a href="/review/{{ result.exam_file }}_review.json" class="btn">View Full Review</a>
+</div>
+{% endif %}
+
+<a href="/" class="btn">Back to Home</a>
+{% endblock %}

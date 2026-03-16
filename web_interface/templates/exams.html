@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Exam Files{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Exam Files</h2>
+    <p>Manage your C exam files</p>
+</div>
+
+<div class="card">
+    <h3>Upload New Exams</h3>
+    <form action="/upload/exams" method="post" enctype="multipart/form-data">
+        <div class="form-group">
+            <input type="file" name="files[]" multiple accept=".c" required>
+        </div>
+        <button type="submit" class="btn">Upload</button>
+    </form>
+</div>
+
+{% if exam_files %}
+<div class="card">
+    <h3>Available Exams ({{ exam_files|length }})</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Filename</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for file in exam_files %}
+            <tr>
+                <td><a href="/exam/{{ file }}">{{ file }}</a></td>
+                <td class="actions">
+                    <a href="/exam/{{ file }}" class="btn">View</a>
+                    <a href="/delete/exam/{{ file }}" class="btn btn-danger" onclick="return confirm('Delete {{ file }}?')">Delete</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="card">
+    <p>No exam files uploaded yet.</p>
+</div>
+{% endif %}
+
+<a href="/" class="btn">Back to Home</a>
+{% endblock %}
