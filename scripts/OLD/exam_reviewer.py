@@ -357,68 +357,73 @@ def main():
     # Initialize reviewer
     reviewer = ExamReviewer(OPENROUTER_API_KEY)
 
-try:
+    try:
         # Load criteria
         print(f"Loading criteria from {CRITERIA_FILE}...")
         criteria_list = reviewer.load_criteria(CRITERIA_FILE)
-        
+
         # TEST MODE: Use only first criteria
         TEST_MODE = os.environ.get("TEST_MODE") == "true"
         if TEST_MODE:
             criteria_list = criteria_list[:1]
             print(f"TEST MODE: Using only first criteria")
-        
+
         # Get exam files
         print(f"Scanning exam files in {EXAMS_DIR}...")
         exam_files = []
         for file in os.listdir(EXAMS_DIR):
-            if file.endswith('.c'):
+            if file.endswith(".c"):
                 exam_files.append(os.path.join(EXAMS_DIR, file))
-        
+
         if not exam_files:
             print(f"No exam files found in {EXAMS_DIR}")
             return
-        
+
         # TEST MODE: Use only first exam
         if TEST_MODE:
             exam_files = exam_files[:1]
             print(f"TEST MODE: Using only first exam")
-        
+
         print(f"Found {len(exam_files)} exam files to review")
-        
+
         # Process each exam
         for i, exam_file in enumerate(exam_files, 1):
-            print(f"\n{'='*50}")
-            print(f"Reviewing exam {i}/{len(exam_files)}: {os.path.basename(exam_file)}")
-            print(f"{'='*50}")
-            
+            print(f"\n{'=' * 50}")
+            print(
+                f"Reviewing exam {i}/{len(exam_files)}: {os.path.basename(exam_file)}"
+            )
+            print(f"{'=' * 50}")
+
             try:
                 # Review exam
                 results = reviewer.review_exam(exam_file, criteria_list)
-                
+
                 # Save results
                 output_path = reviewer.save_results(results, OUTPUT_DIR)
-                
+
                 # Print summary
                 print(f"✓ Review completed: {results['exam_name']}")
-                print(f"  Score: {results['overall_score']:.2f}/{results['maximum_possible_score']:.2f}")
+                print(
+                    f"  Score: {results['overall_score']:.2f}/{results['maximum_possible_score']:.2f}"
+                )
                 print(f"  Results saved to: {output_path}")
-                
+
             except Exception as e:
                 print(f"✗ Failed to review {exam_file}: {e}")
                 continue
-        
-        print(f"\n{'='*50}")
+
+        print(f"\n{'=' * 50}")
         if TEST_MODE:
             print("TEST COMPLETE! Script is working correctly.")
             print("To run full review, remove TEST_MODE environment variable")
         else:
             print("All exams reviewed successfully!")
         print(f"Results saved in: {OUTPUT_DIR}")
-        
+
     except Exception as e:
         print(f"\nERROR: {e}")
         import traceback
+
         traceback.print_exc()
 
 
