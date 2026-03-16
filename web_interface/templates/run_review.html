@@ -10,11 +10,12 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0, 0, 0, 0.8);
+        background: rgba(0, 0, 0, 0.85);
         z-index: 1000;
         justify-content: center;
         align-items: center;
         flex-direction: column;
+        padding: 2rem;
     }
     .loading-overlay.active {
         display: flex;
@@ -34,7 +35,9 @@
     .loading-content {
         color: white;
         text-align: center;
-        margin-top: 2rem;
+        margin-top: 1rem;
+        width: 100%;
+        max-width: 800px;
     }
     .loading-progress {
         font-size: 1.5rem;
@@ -43,20 +46,59 @@
     }
     .loading-detail {
         color: #aaa;
+        margin-bottom: 1rem;
     }
     .loading-bar-container {
-        width: 300px;
+        width: 100%;
         height: 20px;
         background: #333;
         border-radius: 10px;
-        margin-top: 1rem;
         overflow: hidden;
+        margin-bottom: 1rem;
     }
     .loading-bar {
         height: 100%;
         background: #3498db;
         width: 0%;
         transition: width 0.3s ease;
+    }
+    .log-window {
+        background: #1e1e1e;
+        color: #d4d4d4;
+        padding: 1rem;
+        border-radius: 8px;
+        max-height: 300px;
+        overflow-y: auto;
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 0.85rem;
+        text-align: left;
+        width: 100%;
+    }
+    .log-entry {
+        margin: 0.2rem 0;
+        padding: 0.2rem 0;
+    }
+    .log-entry.info { color: #4fc3f7; }
+    .log-entry.success { color: #66bb6a; }
+    .log-entry.error { color: #ef5350; }
+    .log-entry.warning { color: #ffa726; }
+    .log-timestamp {
+        color: #888;
+        margin-right: 0.5rem;
+    }
+    .close-btn {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        background: #e74c3c;
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    .close-btn:hover {
+        background: #c0392b;
     }
 </style>
 {% endblock %}
@@ -87,9 +129,9 @@
                 </select>
             </div>
             <div class="form-group">
-                <label>Select Criteria:</label>
+                <label>Criteria (all criteria from file will be used):</label>
                 <select name="criteria" id="single-criteria" required>
-                    <option value="">-- Select Criteria --</option>
+                    <option value="">-- Select Criteria File --</option>
                     {% for criteria in criteria_files %}
                     <option value="{{ criteria }}" {% if selected_criteria == criteria %}selected{% endif %}>{{ criteria }}</option>
                     {% endfor %}
@@ -104,9 +146,9 @@
         <p>Run evaluation for all exams with selected criteria</p>
         <form method="post" id="batch-form">
             <div class="form-group">
-                <label>Select Criteria:</label>
+                <label>Criteria (all criteria from file will be used):</label>
                 <select name="criteria_batch" id="batch-criteria" required>
-                    <option value="">-- Select Criteria --</option>
+                    <option value="">-- Select Criteria File --</option>
                     {% for criteria in criteria_files %}
                     <option value="{{ criteria }}" {% if selected_criteria == criteria %}selected{% endif %}>{{ criteria }}</option>
                     {% endfor %}
@@ -131,12 +173,16 @@
 </div>
 
 <div class="loading-overlay" id="loading-overlay">
+    <button class="close-btn" onclick="cancelReview()">Cancel</button>
     <div class="loading-spinner"></div>
     <div class="loading-content">
-        <div class="loading-progress" id="loading-progress">Processing...</div>
-        <div class="loading-detail" id="loading-detail"></div>
+        <div class="loading-progress" id="loading-progress">Initializing...</div>
+        <div class="loading-detail" id="loading-detail">Preparing evaluation...</div>
         <div class="loading-bar-container">
             <div class="loading-bar" id="loading-bar"></div>
+        </div>
+        <div class="log-window" id="log-window">
+            <div class="log-entry info"><span class="log-timestamp">[--:--:--]</span>Starting evaluation...</div>
         </div>
     </div>
 </div>
@@ -147,25 +193,50 @@
 {% block extra_js %}
 <script>
 let isRunning = false;
+let reviewCancelled = false;
 
-function showLoading(exam, criteria, progress, total) {
-    const overlay = document.getElementById('loading-overlay');
+function addLog(message, type = 'info') {
+    const logWindow = document.getElementById('log-window');
+    const now = new Date();
+    const timestamp = now.toLocaleTimeString('en-US', { hour12: false });
+    const entry = document.createElement('div');
+    entry.className = `log-entry ${type}`;
+    entry.innerHTML = `<span class="log-timestamp">[${timestamp}]</span>${message}`;
+    logWindow.appendChild(entry);
+    logWindow.scrollTop = logWindow.scrollHeight;
+}
+
+function updateProgress(exam, criteria, progress, total, criteriaTotal) {
     const progressEl = document.getElementById('loading-progress');
     const detailEl = document.getElementById('loading-detail');
     const barEl = document.getElementById('loading-bar');
     
-    overlay.classList.add('active');
-    progressEl.textContent = progress;
-    detailEl.textContent = `Exam: ${exam} | Criteria: ${criteria}`;
+    progressEl.textContent = `Evaluating: ${progress}/${total} exams`;
+    detailEl.textContent = `Exam: ${exam} | Criteria: ${criteria}/${criteriaTotal}`;
     
-    const percentage = (progress.split('/')[0].trim() / total) * 100 || 0;
+    const percentage = (progress / total) * 100;
     barEl.style.width = percentage + '%';
+}
+
+function showLoading(exam, criteria, progress, total) {
+    const overlay = document.getElementById('loading-overlay');
+    overlay.classList.add('active');
+    updateProgress(exam, criteria, progress, total, 1);
 }
 
 function hideLoading() {
     const overlay = document.getElementById('loading-overlay');
     overlay.classList.remove('active');
     isRunning = false;
+    reviewCancelled = false;
+}
+
+function cancelReview() {
+    reviewCancelled = true;
+    addLog('Review cancelled by user', 'warning');
+    setTimeout(() => {
+        hideLoading();
+    }, 1000);
 }
 
 function runSingleReview() {
@@ -179,8 +250,11 @@ function runSingleReview() {
     
     if (isRunning) return;
     isRunning = true;
+    reviewCancelled = false;
     
-    showLoading(exam, criteria, 'Processing...', 1);
+    showLoading(exam, criteria, 1, 1);
+    addLog(`Starting single review for: ${exam}`, 'info');
+    addLog(`Using criteria file: ${criteria}`, 'info');
     
     fetch('/api/run/single', {
         method: 'POST',
@@ -189,15 +263,23 @@ function runSingleReview() {
     })
     .then(response => response.json())
     .then(data => {
-        hideLoading();
+        if (reviewCancelled) return;
+        
         if (data.success) {
+            addLog(`Review completed successfully!`, 'success');
+            addLog(`Score: ${data.result.overall_score}/${data.result.maximum_possible_score}`, 'success');
+            hideLoading();
             showResult(data.result);
             alert('Review completed successfully!');
         } else {
+            addLog(`Error: ${data.error}`, 'error');
+            hideLoading();
             alert('Error: ' + data.error);
         }
     })
     .catch(err => {
+        if (reviewCancelled) return;
+        addLog(`Error: ${err}`, 'error');
         hideLoading();
         alert('Error: ' + err);
     });
@@ -213,20 +295,32 @@ function runBatchReview() {
     
     if (isRunning) return;
     isRunning = true;
+    reviewCancelled = false;
     
     const examCount = {{ exam_files|length }};
     let currentExam = 0;
     
-    function processNextExam(examFiles) {
+    addLog(`Starting batch review for ${examCount} exams`, 'info');
+    addLog(`Using criteria file: ${criteria}`, 'info');
+    
+    function processNextExam(examFiles, criteriaTotal) {
+        if (reviewCancelled) {
+            addLog('Batch review cancelled', 'warning');
+            return;
+        }
+        
         if (currentExam >= examFiles.length) {
+            addLog(`Batch review completed! Processed ${currentExam} exams.`, 'success');
             hideLoading();
-            alert('Batch review completed!');
-            window.location.href = '/reviews';
+            setTimeout(() => {
+                window.location.href = '/reviews';
+            }, 1500);
             return;
         }
         
         const exam = examFiles[currentExam];
-        showLoading(exam, criteria, `Exam ${currentExam + 1}/${examCount}`, examCount);
+        addLog(`Processing exam ${currentExam + 1}/${examCount}: ${exam}`, 'info');
+        updateProgress(exam, '1', currentExam + 1, examCount, criteriaTotal);
         
         fetch('/api/run/single', {
             method: 'POST',
@@ -235,20 +329,26 @@ function runBatchReview() {
         })
         .then(response => response.json())
         .then(data => {
-            currentExam++;
+            if (reviewCancelled) return;
+            
             if (data.success) {
-                processNextExam(examFiles);
+                addLog(`Completed: ${exam} - Score: ${data.result.overall_score}/${data.result.maximum_possible_score}`, 'success');
             } else {
-                console.error('Error processing ' + exam + ': ' + data.error);
-                processNextExam(examFiles);
+                addLog(`Error processing ${exam}: ${data.error}`, 'error');
             }
+            
+            currentExam++;
+            processNextExam(examFiles, criteriaTotal);
         })
         .catch(err => {
-            console.error('Error: ' + err);
+            if (reviewCancelled) return;
+            addLog(`Error: ${err}`, 'error');
             currentExam++;
-            processNextExam(examFiles);
+            processNextExam(examFiles, criteriaTotal);
         });
     }
+    
+    showLoading('Loading...', criteria, 1, examCount);
     
     fetch('/exams')
     .then(response => response.text())
@@ -262,12 +362,22 @@ function runBatchReview() {
         });
         
         if (examFiles.length === 0) {
-            alert('No exams found');
+            addLog('No exams found', 'error');
             hideLoading();
             return;
         }
         
-        processNextExam(examFiles);
+        addLog(`Found ${examFiles.length} exams to process`, 'info');
+        
+        fetch('/criteria')
+        .then(response => response.text())
+        .then(criteriaHtml => {
+            const criteriaDoc = parser.parseFromString(criteriaHtml, 'text/html');
+            const criteriaOptions = criteriaDoc.querySelectorAll('#single-criteria option');
+            const criteriaTotal = criteriaOptions.length;
+            
+            processNextExam(examFiles, criteriaTotal);
+        });
     });
 }
 

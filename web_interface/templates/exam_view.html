@@ -1,11 +1,69 @@
 {% extends "base.html" %}
 {% block title %}{{ filename }}{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+<style>
+    .code-viewer {
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    .code-viewer pre {
+        margin: 0;
+        padding: 1rem;
+        background: white !important;
+    }
+    .code-viewer code {
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        font-size: 0.9rem;
+        line-height: 1.5;
+    }
+    .file-header {
+        background: #f8f9fa;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #ddd;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .file-header h3 {
+        margin: 0;
+        font-size: 1rem;
+    }
+    .line-numbers {
+        color: #999;
+        user-select: none;
+        text-align: right;
+        padding-right: 1rem;
+        border-right: 1px solid #ddd;
+        margin-right: 1rem;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="card">
-    <h2>{{ filename }}</h2>
-    <pre><code>{{ content }}</code></pre>
+    <h2>Exam: {{ filename }}</h2>
 </div>
 
-<a href="/exams" class="btn">Back to Exams</a>
+<div class="code-viewer">
+    <div class="file-header">
+        <h3>{{ filename }}</h3>
+        <span style="color: #666; font-size: 0.9rem;">C Source Code</span>
+    </div>
+    <pre><code class="language-c">{{ content }}</code></pre>
+</div>
+
+<div style="margin-top: 1rem;">
+    <a href="/exams" class="btn">Back to Exams</a>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+    hljs.highlightAll();
+</script>
 {% endblock %}

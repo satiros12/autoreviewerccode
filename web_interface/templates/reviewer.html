@@ -2,11 +2,14 @@
 {% block title %}Interactive Reviewer{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
 <style>
     .reviewer-container { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; min-height: calc(100vh - 200px); }
     .reviewer-panel { background: white; padding: 1rem; border-radius: 8px; overflow-y: auto; }
-    .code-panel { background: #282c34; color: #abb2bf; padding: 1rem; border-radius: 8px; overflow-y: auto; max-height: calc(100vh - 220px); }
-    .code-panel pre { margin: 0; white-space: pre-wrap; word-wrap: break-word; font-size: 0.85rem; }
+    .code-panel { background: white; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; max-height: calc(100vh - 220px); }
+    .code-panel pre { margin: 0; padding: 1rem; background: white !important; }
+    .code-panel code { font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 0.85rem; line-height: 1.5; }
+    .code-header { background: #f8f9fa; padding: 0.5rem 1rem; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; }
     .nav-bar { display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; }
     .nav-info { flex-grow: 1; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
     .nav-info label { display: flex; align-items: center; gap: 0.5rem; }
@@ -66,8 +69,11 @@
 {% else %}
 <div class="reviewer-container">
     <div class="reviewer-panel code-panel">
-        <h3>Exam Code</h3>
-        <pre><code id="exam-code">Loading...</code></pre>
+        <div class="code-header">
+            <span>Exam Code</span>
+            <span style="color: #666; font-size: 0.85rem;">C</span>
+        </div>
+        <pre><code class="language-c" id="exam-code">Loading...</code></pre>
     </div>
     
     <div class="reviewer-panel">
@@ -138,6 +144,7 @@ function renderData() {
     if (!currentData) return;
     
     document.getElementById('exam-code').textContent = currentData.exam_content;
+    highlightCode();
     document.getElementById('position-info').textContent = 
         `Exam ${currentData.exam_idx + 1}/${currentData.total_exams} | Criteria ${currentData.criteria_idx + 1}/${currentData.total_criteria}`;
     
@@ -274,5 +281,11 @@ function prevExam() {
 }
 
 document.addEventListener('DOMContentLoaded', loadReviewerData);
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+    function highlightCode() {
+        hljs.highlightAll();
+    }
 </script>
 {% endblock %}
