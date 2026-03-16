@@ -2,13 +2,12 @@
 Main entry point for CExams package
 """
 
-import os
-import sys
-import logging
 import argparse
+import logging
+import os
 from pathlib import Path
 
-from .core.reviewer import ExamReviewer, CriteriaLoader
+from .core.reviewer import CriteriaLoader, ExamReviewer
 
 
 def configure_logging(verbose: bool = False):
@@ -102,7 +101,7 @@ def main():
         # Check for test mode
         if args.test_mode:
             criteria_list = criteria_list[:1]
-            print(f"TEST MODE: Using only first criteria")
+            print("TEST MODE: Using only first criteria")
 
         # Get exam files
         print(f"Scanning exam files in {args.exams_dir}...")
@@ -124,7 +123,7 @@ def main():
 
         if args.test_mode:
             exam_files = exam_files[:1]
-            print(f"TEST MODE: Using only first exam")
+            print("TEST MODE: Using only first exam")
 
         print(f"Found {len(exam_files)} exam files to review")
 

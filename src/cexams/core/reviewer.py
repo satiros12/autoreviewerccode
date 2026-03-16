@@ -2,15 +2,15 @@
 Core exam review functionality
 """
 
-import os
 import json
-import time
 import logging
-from typing import List, Dict, Any
+import os
+import time
 from pathlib import Path
+from typing import Any, Dict, List
 
-from ..models.criteria import Criteria, ExamReview, CriteriaEvaluation
 from ..api.client import OpenRouterClient
+from ..models.criteria import Criteria, CriteriaEvaluation, ExamReview
 
 logger = logging.getLogger(__name__)
 
@@ -179,9 +179,7 @@ class ExamReviewer:
 
             # Process each criteria
             for i, criteria in enumerate(criteria_list, 1):
-                logger.info(
-                    f"Evaluating criteria {i}/{len(criteria_list)}: {criteria.titulo}"
-                )
+                logger.info(f"Evaluating criteria {i}/{len(criteria_list)}: {criteria.titulo}")
 
                 try:
                     # Create prompt
@@ -222,7 +220,8 @@ class ExamReviewer:
                     # Continue with next criteria
 
             logger.info(
-                f"Completed review for {exam_name}. Score: {review.overall_score}/{review.maximum_possible_score}"
+                f"Completed review for {exam_name}. "
+                f"Score: {review.overall_score}/{review.maximum_possible_score}"
             )
             return review
 

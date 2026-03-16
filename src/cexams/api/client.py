@@ -4,7 +4,8 @@ OpenRouter API client for exam evaluation
 
 import json
 import logging
-from typing import Dict, Any
+from typing import Any, Dict
+
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -72,7 +73,10 @@ class OpenRouterClient:
             AI response text
         """
         if system_prompt is None:
-            system_prompt = "You are an expert C programming evaluator. Analyze code and provide detailed evaluations in JSON format."
+            system_prompt = (
+                "You are an expert C programming evaluator. "
+                "Analyze code and provide detailed evaluations in JSON format."
+            )
 
         data = {
             "model": self.model,
@@ -86,9 +90,7 @@ class OpenRouterClient:
 
         try:
             logger.info("Calling OpenRouter AI API...")
-            response = self.session.post(
-                self.base_url, headers=self.headers, json=data, timeout=60
-            )
+            response = self.session.post(self.base_url, headers=self.headers, json=data, timeout=60)
             response.raise_for_status()
 
             result = response.json()
