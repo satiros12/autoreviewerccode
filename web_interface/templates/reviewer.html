@@ -4,48 +4,56 @@
 {% block extra_css %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
 <style>
-    .reviewer-layout { display: grid; grid-template-columns: 75% 25%; gap: 1rem; min-height: calc(100vh - 180px); }
-    .left-panel { display: flex; flex-direction: column; gap: 1rem; }
-    .right-panel { display: flex; flex-direction: column; gap: 1rem; }
-    .criteria-panel { background: white; padding: 1rem; border-radius: 8px; max-height: calc(100vh - 180px); overflow-y: auto; }
-    .criteria-item { padding: 0.75rem; margin-bottom: 0.5rem; border-radius: 4px; cursor: pointer; border: 1px solid #ddd; }
-    .criteria-item:hover { background: #f0f0f0; }
-    .criteria-item.active { background: #3498db; color: white; border-color: #2980b9; }
-    .criteria-item .criteria-title { font-weight: 500; font-size: 0.9rem; }
-    .criteria-item .criteria-score { font-size: 0.8rem; opacity: 0.8; }
-    .code-panel { background: white; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; flex: 1; min-height: 400px; }
+    .reviewer-layout { display: flex; flex-direction: column; gap: 1rem; min-height: calc(100vh - 180px); }
+    .criteria-bar { display: flex; gap: 0.5rem; overflow-x: auto; padding: 0.5rem; background: white; border-radius: 8px; border: 1px solid #ddd; }
+    .criteria-bar-item { 
+        padding: 0.5rem 1rem; 
+        border-radius: 4px; 
+        cursor: pointer; 
+        border: 1px solid #ddd; 
+        white-space: nowrap;
+        font-size: 0.85rem;
+    }
+    .criteria-bar-item:hover { background: #f0f0f0; }
+    .criteria-bar-item.active { background: #3498db; color: white; border-color: #2980b9; }
+    .main-content { display: flex; gap: 1rem; flex: 1; }
+    .code-section { flex: 3; display: flex; flex-direction: column; }
+    .right-section { flex: 1; display: flex; flex-direction: column; gap: 1rem; min-width: 280px; }
+    .code-panel { background: white; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; flex: 1; min-height: 500px; }
     .code-panel pre { margin: 0; padding: 1rem; background: white !important; overflow: auto; max-height: 100%; }
     .code-panel code { font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 0.85rem; line-height: 1.5; }
     .code-header { background: #f8f9fa; padding: 0.5rem 1rem; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; }
-    .nav-bar { display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; justify-content: space-between; }
+    .nav-bar { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; justify-content: space-between; }
     .nav-info { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
     .nav-info label { display: flex; align-items: center; gap: 0.5rem; }
     .nav-info select { padding: 0.3rem; border-radius: 4px; border: 1px solid #ddd; }
-    .criteria-display { background: #f8f9fa; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; border-left: 4px solid #3498db; }
+    .criteria-display { background: #f8f9fa; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; }
     .criteria-display h4 { margin-bottom: 0.5rem; }
     .criteria-display p { color: #666; font-size: 0.9rem; margin-bottom: 0.5rem; }
     .score-badge { display: inline-block; background: #3498db; color: white; padding: 0.2rem 0.5rem; border-radius: 3px; margin-left: 0.5rem; }
     .loading { text-align: center; padding: 2rem; color: #666; }
-    .btn-nav { padding: 0.4rem 0.8rem; font-size: 0.9rem; }
+    .btn-nav { padding: 0.4rem 0.8rem; font-size: 0.85rem; }
     .btn-save { background: #27ae60; }
     .btn-prev { background: #95a5a6; }
     .btn-next { background: #3498db; }
     .evaluation-form { background: white; padding: 1rem; border-radius: 8px; border: 1px solid #ddd; }
-    .evaluation-form .form-group { margin-bottom: 1rem; }
-    .evaluation-form label { display: block; margin-bottom: 0.3rem; font-weight: 500; }
+    .evaluation-form h4 { margin-bottom: 1rem; }
+    .evaluation-form .form-group { margin-bottom: 0.75rem; }
+    .evaluation-form label { display: block; margin-bottom: 0.3rem; font-weight: 500; font-size: 0.85rem; }
     .evaluation-form input, .evaluation-form textarea { width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; }
-    .evaluation-form textarea { resize: vertical; }
-    .nav-buttons { display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; }
-    .position-info { background: #e8f4f8; padding: 0.5rem 1rem; border-radius: 4px; font-weight: 500; }
-    .total-score { font-size: 1.2rem; font-weight: bold; color: #27ae60; }
-    .evaluated-badge { background: #27ae60; color: white; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.75rem; }
-    .not-evaluated-badge { background: #95a5a6; color: white; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.75rem; }
-    .exam-nav { display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; }
-    .criteria-nav { display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; justify-content: center; }
-    .summary-panel { background: white; padding: 1rem; border-radius: 8px; border: 1px solid #ddd; }
-    .summary-panel h4 { margin-bottom: 0.5rem; }
-    .summary-item { padding: 0.5rem; border-bottom: 1px solid #eee; }
+    .evaluation-form textarea { resize: vertical; font-size: 0.85rem; }
+    .criteria-nav { display: flex; gap: 0.5rem; margin-top: 0.75rem; flex-wrap: wrap; }
+    .position-info { background: #e8f4f8; padding: 0.5rem 1rem; border-radius: 4px; font-weight: 500; font-size: 0.9rem; }
+    .total-score { font-size: 1.1rem; font-weight: bold; color: #27ae60; }
+    .evaluated-badge { background: #27ae60; color: white; padding: 0.1rem 0.4rem; border-radius: 3px; font-size: 0.7rem; margin-right: 0.3rem; }
+    .not-evaluated-badge { background: #95a5a6; color: white; padding: 0.1rem 0.4rem; border-radius: 3px; font-size: 0.7rem; margin-right: 0.3rem; }
+    .exam-nav { display: flex; gap: 0.5rem; margin-top: 0.75rem; flex-wrap: wrap; }
+    .summary-panel { background: white; padding: 1rem; border-radius: 8px; border: 1px solid #ddd; max-height: 300px; overflow-y: auto; }
+    .summary-panel h4 { margin-bottom: 0.5rem; font-size: 0.95rem; }
+    .summary-item { padding: 0.4rem; border-bottom: 1px solid #eee; font-size: 0.85rem; cursor: pointer; }
+    .summary-item:hover { background: #f5f5f5; }
     .summary-item:last-child { border-bottom: none; }
+    .criteria-name { font-weight: 600; color: #2c3e50; margin-bottom: 0.5rem; padding: 0.5rem; background: #ecf0f1; border-radius: 4px; }
 </style>
 {% endblock %}
 
@@ -84,57 +92,54 @@
 </div>
 {% else %}
 <div class="reviewer-layout">
-    <div class="left-panel">
-        <div class="reviewer-panel code-panel">
-            <div class="code-header">
-                <span>Exam Code</span>
-                <span style="color: #666; font-size: 0.85rem;">C</span>
-            </div>
-            <pre><code class="language-c" id="exam-code">Loading...</code></pre>
-        </div>
-        
-        <div class="evaluation-form">
-            <h4>Edit Evaluation</h4>
-            <form id="evaluation-form">
-                <div class="form-group">
-                    <label>Maximum Score:</label>
-                    <input type="text" id="max-score" readonly style="background: #f0f0f0;">
-                </div>
-                <div class="form-group">
-                    <label>Awarded Score:</label>
-                    <input type="number" id="awarded-score" step="0.1" min="0">
-                </div>
-                <div class="form-group">
-                    <label>Justification:</label>
-                    <textarea id="justification" rows="4" placeholder="Enter your evaluation justification..."></textarea>
-                </div>
-                
-                <div class="criteria-nav">
-                    <button type="button" class="btn btn-save btn-nav" onclick="saveEvaluation()">Save</button>
-                    <button type="button" class="btn btn-prev btn-nav" onclick="prevCriteria()">Prev Criteria</button>
-                    <button type="button" class="btn btn-next btn-nav" onclick="nextCriteria()">Next Criteria</button>
-                </div>
-            </form>
-        </div>
-        
-        <div class="summary-panel">
-            <h4>Summary - All Criteria Evaluations</h4>
-            <div id="summary-list"></div>
-            <div class="exam-nav">
-                <button type="button" class="btn btn-nav" onclick="prevExam()">← Previous Exam</button>
-                <button type="button" class="btn btn-nav" onclick="nextExam()">Next Exam →</button>
-            </div>
-        </div>
-    </div>
+    <div class="criteria-bar" id="criteria-bar"></div>
     
-    <div class="right-panel">
-        <div class="criteria-panel">
-            <h3 style="margin-bottom: 1rem;">Evaluation Criteria</h3>
-            <div id="criteria-list"></div>
+    <div class="main-content">
+        <div class="code-section">
+            <div class="code-panel">
+                <div class="code-header">
+                    <span>Exam Code</span>
+                    <span style="color: #666; font-size: 0.85rem;">C</span>
+                </div>
+                <pre><code class="language-c" id="exam-code">Loading...</code></pre>
+            </div>
         </div>
         
-        <div class="criteria-display" id="current-criteria-display">
-            <div id="current-criteria"></div>
+        <div class="right-section">
+            <div class="evaluation-form">
+                <h4>Edit Evaluation</h4>
+                <div class="criteria-name" id="criteria-name">-</div>
+                <form id="evaluation-form">
+                    <div class="form-group">
+                        <label>Maximum Score:</label>
+                        <input type="text" id="max-score" readonly style="background: #f0f0f0;">
+                    </div>
+                    <div class="form-group">
+                        <label>Awarded Score:</label>
+                        <input type="number" id="awarded-score" step="0.1" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Justification:</label>
+                        <textarea id="justification" rows="4" placeholder="Enter your evaluation justification..."></textarea>
+                    </div>
+                    
+                    <div class="criteria-nav">
+                        <button type="button" class="btn btn-save btn-nav" onclick="saveEvaluation()">Save</button>
+                        <button type="button" class="btn btn-prev btn-nav" onclick="prevCriteria()">← Prev</button>
+                        <button type="button" class="btn btn-next btn-nav" onclick="nextCriteria()">Next →</button>
+                    </div>
+                </form>
+                
+                <div class="exam-nav">
+                    <button type="button" class="btn btn-nav" onclick="prevExam()">← Prev Exam</button>
+                    <button type="button" class="btn btn-nav" onclick="nextExam()">Next Exam →</button>
+                </div>
+            </div>
+            
+            <div class="summary-panel">
+                <h4>Summary</h4>
+                <div id="summary-list"></div>
+            </div>
         </div>
     </div>
 </div>
@@ -150,12 +155,11 @@ function loadReviewerData() {
     const criteriaFile = document.getElementById('criteria-file-select').value;
     
     if (!criteriaFile) {
-        document.getElementById('criteria-list').innerHTML = '<p>No criteria file selected</p>';
+        document.getElementById('criteria-bar').innerHTML = '<p>No criteria file selected</p>';
         return;
     }
     
     document.getElementById('exam-code').textContent = 'Loading...';
-    document.getElementById('current-criteria').innerHTML = '<div class="loading">Loading...</div>';
     
     fetch(`/api/reviewer/data?exam_idx=${examIdx}&criteria_file=${criteriaFile}&criteria_idx=${currentCriteriaIndex}`)
         .then(response => response.json())
@@ -185,43 +189,39 @@ function renderData() {
     document.getElementById('total-score').textContent = 
         `${currentData.review_data?.overall_score || 0}/${currentData.review_data?.maximum_possible_score || 0}`;
     
-    renderCriteriaList();
+    renderCriteriaBar();
     renderCurrentCriteria();
     renderSummary();
 }
 
-function renderCriteriaList() {
+function renderCriteriaBar() {
     if (!currentData || !currentData.criteria_with_index) return;
     
-    const listContainer = document.getElementById('criteria-list');
+    const barContainer = document.getElementById('criteria-bar');
     let html = '';
     
     currentData.criteria_with_index.forEach((crit, idx) => {
-        let score = '';
         let isEvaluated = false;
+        let score = '';
         
         if (currentData.review_data && currentData.review_data.criteria_evaluations) {
             const eval = currentData.review_data.criteria_evaluations.find(e => e.criteria_index === idx + 1);
             if (eval) {
-                score = `Score: ${eval.awarded_score}/${crit.nota_maxima}`;
                 isEvaluated = true;
+                score = ` (${eval.awarded_score}/${crit.nota_maxima})`;
             }
         }
         
         html += `
-            <div class="criteria-item ${idx === currentCriteriaIndex ? 'active' : ''}" 
+            <div class="criteria-bar-item ${idx === currentCriteriaIndex ? 'active' : ''}" 
                  onclick="selectCriteria(${idx})">
-                <div class="criteria-title">${crit.titulo}</div>
-                <div class="criteria-score">
-                    ${isEvaluated ? `<span class="evaluated-badge">✓</span> ` : `<span class="not-evaluated-badge">○</span> `}
-                    ${crit.nota_maxima} pts
-                    ${score ? `- ${score}` : ''}
-                </div>
+                <span class="${isEvaluated ? 'evaluated-badge' : 'not-evaluated-badge'}">${isEvaluated ? '✓' : '○'}</span>
+                ${crit.titulo}${score}
             </div>
         `;
     });
     
-    listContainer.innerHTML = html;
+    barContainer.innerHTML = html;
 }
 
 function renderCurrentCriteria() {
@@ -230,31 +230,7 @@ function renderCurrentCriteria() {
     const criteria = currentData.current_criteria;
     const evaluation = currentData.current_evaluation;
     
-    let criteriaHtml = `
-        <h4>${criteria.titulo || 'Untitled'} <span class="score-badge">Max: ${criteria.nota_maxima || 0}</span></h4>
-        <p>${criteria.descripcion || ''}</p>
-    `;
-    
-    if (criteria.subapartados && criteria.subapartados.length > 0) {
-        criteriaHtml += '<h5>Subsections:</h5>';
-        criteria.subapartados.forEach((sub, idx) => {
-            let evalSub = null;
-            if (evaluation && evaluation.subsection_evaluations) {
-                evalSub = evaluation.subsection_evaluations.find(e => e.subsection_name === sub.nombre);
-            }
-            criteriaHtml += `
-                <div style="background: #fff; padding: 0.5rem; margin: 0.3rem 0; border-radius: 4px; font-size: 0.85rem; border: 1px solid #eee;">
-                    <strong>${sub.nombre || 'Untitled'}</strong>
-                    <span style="color: #666;">(${sub.puntos || 0} pts)</span>
-                    ${sub.anulador ? '<span class="score-badge" style="background: #e74c3c;">NULLIFIER</span>' : ''}
-                    <p style="margin: 0.2rem 0; color: #666; font-size: 0.8rem;">${sub.descripcion || ''}</p>
-                    ${evalSub ? `<p style="margin: 0; color: #27ae60; font-size: 0.8rem;">Awarded: ${evalSub.awarded_points}/${sub.puntos}</p>` : ''}
-                </div>
-            `;
-        });
-    }
-    
-    document.getElementById('current-criteria').innerHTML = criteriaHtml;
+    document.getElementById('criteria-name').textContent = criteria.titulo || 'Untitled Criteria';
     
     document.getElementById('max-score').value = criteria.nota_maxima || 0;
     
@@ -284,11 +260,9 @@ function renderSummary() {
         const color = evalData ? '#27ae60' : '#95a5a6';
         
         html += `
-            <div class="summary-item" style="cursor: pointer;" onclick="selectCriteria(${idx})">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span><span style="color: ${color};">${status}</span> ${crit.titulo}</span>
-                    <span style="font-weight: bold; color: ${color};">${score}</span>
-                </div>
+            <div class="summary-item" onclick="selectCriteria(${idx})">
+                <span style="color: ${color};">${status}</span> 
+                ${crit.titulo} - <strong>${score}</strong>
             </div>
         `;
     });
@@ -310,7 +284,7 @@ function selectCriteria(idx) {
             currentData.current_evaluation = null;
         }
         
-        renderCriteriaList();
+        renderCriteriaBar();
         renderCurrentCriteria();
     }
 }
