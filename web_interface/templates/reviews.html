@@ -9,6 +9,12 @@
 
 {% if reviews %}
 <div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h3>Review Results ({{ reviews|length }})</h3>
+        <form action="/delete/reviews-all" method="post" onsubmit="return confirm('Delete all reviews?');">
+            <button type="submit" class="btn btn-danger">Delete All</button>
+        </form>
+    </div>
     <table>
         <thead>
             <tr>
@@ -25,6 +31,7 @@
                 <td class="actions">
                     <a href="/review/{{ review.filename }}" class="btn">View</a>
                     <a href="/review/{{ review.filename }}/download" class="btn">Download</a>
+                    <a href="/review/{{ review.filename }}/download-text" class="btn">Download Text</a>
                     <a href="/delete/review/{{ review.filename }}" class="btn btn-danger" onclick="return confirm('Delete this review?')">Delete</a>
                 </td>
             </tr>

@@ -1,10 +1,9 @@
-import os
 import json
-import time
 import logging
-from typing import Dict, Any, List
+import os
+from typing import Any, Dict
 
-from config import OPENROUTER_API_KEY, DEFAULT_MODEL
+from config import DEFAULT_MODEL, OPENROUTER_API_KEY
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -79,7 +78,7 @@ class ExamEvaluator:
             raise ValueError("OPENROUTER_API_KEY not set")
         self.api_client = OpenRouterClient()
 
-    def load_criteria(self, criteria_file: str) -> List[Dict]:
+    def load_criteria(self, criteria_file: str) -> Dict:
         filepath = os.path.join(self.criteria_dir, criteria_file)
         with open(filepath, "r", encoding="utf-8") as f:
             return json.load(f)
@@ -135,70 +134,15 @@ OUTPUT FORMAT (JSON only):
 
     def run_single_review(self, exam_file: str, criteria_file: str) -> Dict:
         exam_content = self.load_exam(exam_file)
-        criteria_list = self.load_criteria(criteria_file)
+        criteria = self.load_criteria(criteria_file)
 
-        evaluations = []
-        overall_score = 0.0
-        max_score = 0.0
-
-        for i, criteria in enumerate(criteria_list):
-            prompt = self.create_prompt(exam_content, criteria)
-
-            try:
-                ai_response = self.api_client.call_api(prompt)
-                evaluation = self.api_client.parse_ai_response(ai_response)
-            except Exception as e:
-                logger.error(f"Evaluation failed for criteria {i}: {e}")
-                evaluation = {
-                    "criteria_title": criteria.get("titulo", ""),
-                    "criteria_description": criteria.get("descripcion", ""),
-                    "maximum_score": criteria.get("nota_maxima", 0),
-                    "awarded_score": 0,
-                    "justification": f"Error: {str(e)}",
-                    "subsection_evaluations": [],
-                }
-
-            evaluation["criteria_index"] = i + 1
-            evaluations.append(evaluation)
-            overall_score += evaluation.get("awarded_score", 0)
-            max_score += criteria.get("nota_maxima", 0)
-
-            time.sleep(1)
-
-        review = {
-            "exam_name": os.path.splitext(exam_file)[0],
-            "exam_file": exam_file,
-            "total_criteria": len(criteria_list),
-            "criteria_evaluations": evaluations,
-            "overall_score": overall_score,
-            "maximum_possible_score": max_score,
-        }
-
-        output_file = os.path.join(
-            self.reviews_dir, f"{os.path.splitext(exam_file)[0]}_review.json"
-        )
-        with open(output_file, "w", encoding="utf-8") as f:
-            json.dump(review, f, indent=2, ensure_ascii=False)
-
-        return review
-
-    def run_single_criteria_review(
-        self, exam_file: str, criteria_file: str, criteria_index: int = 0
-    ) -> Dict:
-        exam_content = self.load_exam(exam_file)
-        criteria_list = self.load_criteria(criteria_file)
-
-        if criteria_index >= len(criteria_list):
-            raise ValueError(f"Criteria index {criteria_index} out of range")
-
-        criteria = criteria_list[criteria_index]
         prompt = self.create_prompt(exam_content, criteria)
 
         try:
             ai_response = self.api_client.call_api(prompt)
             evaluation = self.api_client.parse_ai_response(ai_response)
         except Exception as e:
-            logger.error(f"Evaluation failed for criteria {criteria_index}: {e}")
+            logger.error(f"Evaluation failed for criteria {criteria_file}: {e}")
             evaluation = {
                 "criteria_title": criteria.get("titulo", ""),
                 "criteria_description": criteria.get("descripcion", ""),
@@ -208,7 +152,8 @@ OUTPUT FORMAT (JSON only):
                 "subsection_evaluations": [],
             }
 
-        evaluation["criteria_index"] = criteria_index + 1
+        evaluation["criteria_filename"] = criteria_file
+        evaluation["criteria_title"] = criteria.get("titulo", "")
 
         review_file = os.path.join(
             self.reviews_dir, f"{os.path.splitext(exam_file)[0]}_review.json"
@@ -221,7 +166,7 @@ OUTPUT FORMAT (JSON only):
             review_data = {
                 "exam_name": os.path.splitext(exam_file)[0],
                 "exam_file": exam_file,
-                "total_criteria": len(criteria_list),
+                "total_criteria": 0,
                 "criteria_evaluations": [],
                 "overall_score": 0.0,
                 "maximum_possible_score": 0.0,
@@ -229,7 +174,7 @@ OUTPUT FORMAT (JSON only):
 
         found = False
         for i, eval_item in enumerate(review_data["criteria_evaluations"]):
-            if eval_item.get("criteria_index") == criteria_index + 1:
+            if eval_item.get("criteria_filename") == criteria_file:
                 review_data["criteria_evaluations"][i] = evaluation
                 found = True
                 break
@@ -238,7 +183,15 @@ OUTPUT FORMAT (JSON only):
             review_data["criteria_evaluations"].append(evaluation)
 
         overall_score = sum(e.get("awarded_score", 0) for e in review_data["criteria_evaluations"])
-        max_score = sum(c.get("nota_maxima", 0) for c in criteria_list)
+
+        all_criteria_files = [f for f in os.listdir(self.criteria_dir) if f.endswith(".json")]
+        max_score = 0.0
+        for cf in all_criteria_files:
+            try:
+                c = self.load_criteria(cf)
+                max_score += c.get("nota_maxima", 0)
+            except Exception:
+                pass
 
         review_data["overall_score"] = overall_score
         review_data["maximum_possible_score"] = max_score
@@ -247,6 +200,9 @@ OUTPUT FORMAT (JSON only):
             json.dump(review_data, f, indent=2, ensure_ascii=False)
 
         return review_data
+
+    def run_single_criteria_review(self, exam_file: str, criteria_file: str) -> Dict:
+        return self.run_single_review(exam_file, criteria_file)
 
     def run_all_reviews(self, criteria_file: str) -> int:
         exam_files = [f for f in os.listdir(self.exams_dir) if f.endswith(".c")]
@@ -258,5 +214,20 @@ OUTPUT FORMAT (JSON only):
                 count += 1
             except Exception as e:
                 logger.error(f"Failed to review {exam_file}: {e}")
+
+        return count
+
+    def run_all_criteria_reviews(self) -> int:
+        exam_files = [f for f in os.listdir(self.exams_dir) if f.endswith(".c")]
+        criteria_files = [f for f in os.listdir(self.criteria_dir) if f.endswith(".json")]
+
+        count = 0
+        for exam_file in exam_files:
+            for criteria_file in criteria_files:
+                try:
+                    self.run_single_review(exam_file, criteria_file)
+                    count += 1
+                except Exception as e:
+                    logger.error(f"Failed to review {exam_file} with {criteria_file}: {e}")
 
         return count

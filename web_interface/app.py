@@ -1,10 +1,11 @@
 import os
-from flask import Flask, render_template, request, flash
 
-from config import SECRET_KEY, EXAMS_DIR, CRITERIA_DIR, REVIEWS_DIR
-from routes.main import main_bp
+from flask import Flask, flash, render_template, request
 from routes.api import api_bp
+from routes.main import main_bp
 from services import ExamEvaluator
+
+from config import CRITERIA_DB_DIR, EXAMS_DIR, REVIEWS_DIR, SECRET_KEY
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
@@ -16,7 +17,7 @@ app.register_blueprint(api_bp)
 @app.route("/run", methods=["GET", "POST"])
 def run_review():
     exam_files = sorted([f for f in os.listdir(EXAMS_DIR) if f.endswith(".c")])
-    criteria_files = sorted([f for f in os.listdir(CRITERIA_DIR) if f.endswith(".json")])
+    criteria_files = sorted([f for f in os.listdir(CRITERIA_DB_DIR) if f.endswith(".json")])
 
     selected_exam = (
         request.args.get("exam") if request.method == "GET" else request.form.get("exam")
@@ -33,7 +34,7 @@ def run_review():
             error = "Please select both exam and criteria"
         else:
             try:
-                evaluator = ExamEvaluator(CRITERIA_DIR, EXAMS_DIR, REVIEWS_DIR)
+                evaluator = ExamEvaluator(CRITERIA_DB_DIR, EXAMS_DIR, REVIEWS_DIR)
                 result = evaluator.run_single_review(selected_exam, selected_criteria)
                 flash(f"Review completed for {selected_exam}", "success")
             except Exception as e:
@@ -41,11 +42,11 @@ def run_review():
 
     elif request.method == "POST" and "run_all" in request.form:
         if not criteria_files:
-            error = "No criteria files available"
+            error = "No criteria available"
         else:
             selected_batch_criteria = request.form.get("criteria_batch", criteria_files[0])
             try:
-                evaluator = ExamEvaluator(CRITERIA_DIR, EXAMS_DIR, REVIEWS_DIR)
+                evaluator = ExamEvaluator(CRITERIA_DB_DIR, EXAMS_DIR, REVIEWS_DIR)
                 count = evaluator.run_all_reviews(selected_batch_criteria)
                 flash(f"Completed {count} reviews", "success")
             except Exception as e:

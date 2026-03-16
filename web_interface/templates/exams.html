@@ -19,7 +19,12 @@
 
 {% if exam_files %}
 <div class="card">
-    <h3>Available Exams ({{ exam_files|length }})</h3>
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h3>Available Exams ({{ exam_files|length }})</h3>
+        <form action="/delete/exams-all" method="post" onsubmit="return confirm('Delete all exams?');">
+            <button type="submit" class="btn btn-danger">Delete All</button>
+        </form>
+    </div>
     <table>
         <thead>
             <tr>

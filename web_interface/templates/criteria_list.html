@@ -1,10 +1,72 @@
 {% extends "base.html" %}
-{% block title %}Criteria Files{% endblock %}
+{% block title %}Evaluation Criteria{% endblock %}
+
+{% block extra_css %}
+<style>
+    .criteria-card {
+        background: white;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-radius: 8px;
+        border-left: 4px solid #3498db;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .criteria-card h3 {
+        margin-top: 0;
+        color: #2c3e50;
+    }
+    .criteria-meta {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        margin: 0.5rem 0;
+    }
+    .criteria-meta .badge {
+        background: #3498db;
+        color: white;
+        padding: 0.2rem 0.5rem;
+        border-radius: 3px;
+        font-size: 0.85rem;
+    }
+    .criteria-meta .subsections-count {
+        color: #7f8c8d;
+        font-size: 0.9rem;
+    }
+    .criteria-description {
+        color: #555;
+        margin: 0.5rem 0;
+    }
+    .subsections-preview {
+        background: #f8f9fa;
+        padding: 0.5rem;
+        border-radius: 4px;
+        margin-top: 0.5rem;
+        font-size: 0.85rem;
+    }
+    .subsections-preview ul {
+        margin: 0;
+        padding-left: 1.2rem;
+    }
+    .actions {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: #7f8c8d;
+    }
+    .empty-state p {
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="card">
     <h2>Evaluation Criteria</h2>
-    <p>Manage your evaluation criteria JSON files</p>
+    <p>Manage individual evaluation criteria. Upload a JSON file containing one or more criteria to load them.</p>
 </div>
 
 <div class="card">
@@ -13,36 +75,55 @@
         <div class="form-group">
             <input type="file" name="file" accept=".json" required>
         </div>
-        <button type="submit" class="btn">Upload</button>
+        <button type="submit" class="btn">Upload Criteria</button>
     </form>
+    <p style="margin-top: 0.5rem; font-size: 0.85rem; color: #7f8c8d;">
+        Accepted: single criteria object or array of criteria objects
+    </p>
 </div>
 
-{% if criteria_files %}
+{% if criteria_list %}
 <div class="card">
-    <h3>Available Criteria ({{ criteria_files|length }})</h3>
-    <table>
-        <thead>
-            <tr>
-                <th>Filename</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for file in criteria_files %}
-            <tr>
-                <td><a href="/criteria/{{ file }}">{{ file }}</a></td>
-                <td class="actions">
-                    <a href="/criteria/{{ file }}" class="btn">Edit</a>
-                    <a href="/delete/criteria/{{ file }}" class="btn btn-danger" onclick="return confirm('Delete {{ file }}?')">Delete</a>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h3>Available Criteria ({{ criteria_list|length }})</h3>
+        <form action="/delete/criteria-all" method="post" onsubmit="return confirm('Delete all criteria?');">
+            <button type="submit" class="btn btn-danger">Delete All</button>
+        </form>
+    </div>
+    {% for criteria in criteria_list %}
+    <div class="criteria-card">
+        <h3>{{ criteria.titulo }}</h3>
+        <div class="criteria-meta">
+            <span class="badge">Max Score: {{ criteria.nota_maxima }}</span>
+            <span class="subsections-count">{{ criteria.subapartados|length }} subsections</span>
+        </div>
+        {% if criteria.descripcion %}
+        <p class="criteria-description">{{ criteria.descripcion }}</p>
+        {% endif %}
+        {% if criteria.subapartados %}
+        <div class="subsections-preview">
+            <strong>Subsections:</strong>
+            <ul>
+                {% for sub in criteria.subapartados[:3] %}
+                <li>{{ sub.nombre }} ({{ sub.puntos }} pts){% if sub.anulador %} [NULLIFIER]{% endif %}</li>
+                {% endfor %}
+                {% if criteria.subapartados|length > 3 %}
+                <li>... and {{ criteria.subapartados|length - 3 }} more</li>
+                {% endif %}
+            </ul>
+        </div>
+        {% endif %}
+        <div class="actions">
+            <a href="/criteria/{{ criteria.filename }}" class="btn">Edit</a>
+            <a href="/delete/criteria/{{ criteria.filename }}" class="btn btn-danger" onclick="return confirm('Delete criteria: {{ criteria.titulo }}?')">Delete</a>
+        </div>
+    </div>
+    {% endfor %}
 </div>
 {% else %}
-<div class="card">
-    <p>No criteria files uploaded yet.</p>
+<div class="card empty-state">
+    <p>No criteria loaded yet.</p>
+    <p>Upload a JSON file with evaluation criteria to get started.</p>
 </div>
 {% endif %}
 

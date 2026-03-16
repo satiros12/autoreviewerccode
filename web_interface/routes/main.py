@@ -1,19 +1,18 @@
+import json
+import os
+
 from flask import (
     Blueprint,
+    flash,
+    redirect,
     render_template,
     request,
-    redirect,
-    url_for,
     send_from_directory,
-    jsonify,
-    flash,
+    url_for,
 )
 from werkzeug.utils import secure_filename
-import os
-import json
 
-from config import EXAMS_DIR, CRITERIA_DIR, REVIEWS_DIR, ALLOWED_EXTENSIONS
-from services import ExamEvaluator
+from config import ALLOWED_EXTENSIONS, CRITERIA_DB_DIR, EXAMS_DIR, REVIEWS_DIR
 
 main_bp = Blueprint("main", __name__)
 
@@ -25,8 +24,21 @@ def allowed_file(filename, allowed_extensions=ALLOWED_EXTENSIONS):
 @main_bp.route("/")
 def index():
     exam_files = [f for f in os.listdir(EXAMS_DIR) if f.endswith(".c")]
-    criteria_files = [f for f in os.listdir(CRITERIA_DIR) if f.endswith(".json")]
+    criteria_files = [f for f in os.listdir(CRITERIA_DB_DIR) if f.endswith(".json")]
     review_files = [f for f in os.listdir(REVIEWS_DIR) if f.endswith(".json")]
+
+    criteria_list = []
+    for cf in criteria_files:
+        filepath = os.path.join(CRITERIA_DB_DIR, cf)
+        with open(filepath, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        criteria_list.append(
+            {
+                "filename": cf,
+                "titulo": data.get("titulo", cf),
+                "nota_maxima": data.get("nota_maxima", 0),
+            }
+        )
 
     return render_template(
         "index.html",
@@ -34,7 +46,7 @@ def index():
         criteria_count=len(criteria_files),
         review_count=len(review_files),
         exam_files=sorted(exam_files),
-        criteria_files=sorted(criteria_files),
+        criteria_list=sorted(criteria_list, key=lambda x: x["titulo"]),
     )
 
 
@@ -64,9 +76,46 @@ def upload_criteria():
 
     file = request.files["file"]
     if file and allowed_file(file.filename, {"json"}):
-        filename = secure_filename(file.filename)
-        file.save(os.path.join(CRITERIA_DIR, filename))
-        flash(f"Uploaded criteria: {filename}", "success")
+        try:
+            content = file.read().decode("utf-8")
+            criteria_data = json.loads(content)
+
+            criteria_list = []
+            if isinstance(criteria_data, dict):
+                criteria_list = [criteria_data]
+            elif isinstance(criteria_data, list):
+                criteria_list = criteria_data
+            else:
+                flash("Invalid criteria format: expected object or array", "error")
+                return redirect(url_for("main.index"))
+
+            saved_count = 0
+            updated_count = 0
+            for criteria in criteria_list:
+                titulo = criteria.get("titulo", "untitled")
+                safe_name = secure_filename(titulo)[:100]
+                if not safe_name:
+                    safe_name = "untitled"
+
+                criteria_file = os.path.join(CRITERIA_DB_DIR, f"{safe_name}.json")
+                is_update = os.path.exists(criteria_file)
+
+                with open(criteria_file, "w", encoding="utf-8") as f:
+                    json.dump(criteria, f, indent=2, ensure_ascii=False)
+
+                if is_update:
+                    updated_count += 1
+                else:
+                    saved_count += 1
+
+            msg = (
+                f"Loaded {len(criteria_list)} criteria ({saved_count} new, {updated_count} updated)"
+            )
+            flash(msg, "success")
+        except json.JSONDecodeError as e:
+            flash(f"Invalid JSON: {str(e)}", "error")
+        except Exception as e:
+            flash(f"Error processing file: {str(e)}", "error")
 
     return redirect(url_for("main.index"))
 
@@ -87,15 +136,53 @@ def view_exam(filename):
     return "File not found", 404
 
 
+@main_bp.route("/delete/exam/<filename>")
+def delete_exam(filename):
+    filepath = os.path.join(EXAMS_DIR, secure_filename(filename))
+    if os.path.exists(filepath):
+        os.remove(filepath)
+        flash(f"Deleted exam: {filename}", "success")
+    return redirect(url_for("main.list_exams"))
+
+
+@main_bp.route("/delete/exams-all", methods=["POST"])
+def delete_all_exams():
+    count = 0
+    for f in os.listdir(EXAMS_DIR):
+        if f.endswith(".c"):
+            os.remove(os.path.join(EXAMS_DIR, f))
+            count += 1
+    flash(f"Deleted {count} exams", "success")
+    return redirect(url_for("main.list_exams"))
+
+
 @main_bp.route("/criteria")
 def list_criteria():
-    criteria_files = sorted([f for f in os.listdir(CRITERIA_DIR) if f.endswith(".json")])
-    return render_template("criteria_list.html", criteria_files=criteria_files)
+    criteria_files = sorted([f for f in os.listdir(CRITERIA_DB_DIR) if f.endswith(".json")])
+
+    criteria_list = []
+    for cf in criteria_files:
+        filepath = os.path.join(CRITERIA_DB_DIR, cf)
+        with open(filepath, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        criteria_list.append(
+            {
+                "filename": cf,
+                "titulo": data.get("titulo", cf),
+                "descripcion": data.get("descripcion", ""),
+                "nota_maxima": data.get("nota_maxima", 0),
+                "subapartados": data.get("subapartados", []),
+            }
+        )
+
+    return render_template(
+        "criteria_list.html", criteria_list=sorted(criteria_list, key=lambda x: x["titulo"])
+    )
 
 
-@main_bp.route("/criteria/<filename>")
+@main_bp.route("/criteria/<path:filename>")
 def view_criteria(filename):
-    filepath = os.path.join(CRITERIA_DIR, secure_filename(filename))
+    filepath = os.path.join(CRITERIA_DB_DIR, secure_filename(filename))
     if os.path.exists(filepath):
         with open(filepath, "r", encoding="utf-8") as f:
             content = f.read()
@@ -111,7 +198,7 @@ def view_criteria(filename):
 
 @main_bp.route("/criteria/<filename>/save", methods=["POST"])
 def save_criteria(filename):
-    filepath = os.path.join(CRITERIA_DIR, secure_filename(filename))
+    filepath = os.path.join(CRITERIA_DB_DIR, secure_filename(filename))
     new_content = request.form.get("content")
 
     try:
@@ -123,6 +210,26 @@ def save_criteria(filename):
         flash(f"Invalid JSON: {str(e)}", "error")
 
     return redirect(url_for("main.view_criteria", filename=filename))
+
+
+@main_bp.route("/delete/criteria/<filename>")
+def delete_criteria(filename):
+    filepath = os.path.join(CRITERIA_DB_DIR, secure_filename(filename))
+    if os.path.exists(filepath):
+        os.remove(filepath)
+        flash(f"Deleted criteria: {filename}", "success")
+    return redirect(url_for("main.list_criteria"))
+
+
+@main_bp.route("/delete/criteria-all", methods=["POST"])
+def delete_all_criteria():
+    count = 0
+    for f in os.listdir(CRITERIA_DB_DIR):
+        if f.endswith(".json"):
+            os.remove(os.path.join(CRITERIA_DB_DIR, f))
+            count += 1
+    flash(f"Deleted {count} criteria", "success")
+    return redirect(url_for("main.list_criteria"))
 
 
 @main_bp.route("/reviews")
@@ -166,38 +273,48 @@ def download_review(filename):
     return send_from_directory(REVIEWS_DIR, secure_filename(filename), as_attachment=True)
 
 
-@main_bp.route("/run")
-def run_review_page():
-    exam_files = sorted([f for f in os.listdir(EXAMS_DIR) if f.endswith(".c")])
-    criteria_files = sorted([f for f in os.listdir(CRITERIA_DIR) if f.endswith(".json")])
+@main_bp.route("/review/<filename>/download-text")
+def download_review_text(filename):
+    filepath = os.path.join(REVIEWS_DIR, secure_filename(filename))
+    if not os.path.exists(filepath):
+        return "Review not found", 404
 
-    return render_template(
-        "run_review.html",
-        exam_files=exam_files,
-        criteria_files=criteria_files,
-        selected_exam=None,
-        selected_criteria=None,
-        result=None,
-        error=None,
-    )
+    with open(filepath, "r", encoding="utf-8") as f:
+        review = json.load(f)
 
+    exam_name = review.get("exam_name", filename)
+    overall_score = review.get("overall_score", 0)
+    max_score = review.get("maximum_possible_score", 0)
 
-@main_bp.route("/delete/exam/<filename>")
-def delete_exam(filename):
-    filepath = os.path.join(EXAMS_DIR, secure_filename(filename))
-    if os.path.exists(filepath):
-        os.remove(filepath)
-        flash(f"Deleted {filename}", "success")
-    return redirect(url_for("main.list_exams"))
+    lines = []
+    lines.append(f"Exam: {exam_name}")
+    lines.append(f"General Grade: {overall_score}/{max_score}")
+    lines.append("")
+    lines.append("=" * 50)
+    lines.append("")
 
+    for i, eval_item in enumerate(review.get("criteria_evaluations", []), 1):
+        criteria_title = eval_item.get("criteria_title", f"Criteria {i}")
+        awarded = eval_item.get("awarded_score", 0)
+        maximum = eval_item.get("maximum_score", 0)
+        justification = eval_item.get("justification", "No justification provided")
 
-@main_bp.route("/delete/criteria/<filename>")
-def delete_criteria(filename):
-    filepath = os.path.join(CRITERIA_DIR, secure_filename(filename))
-    if os.path.exists(filepath):
-        os.remove(filepath)
-        flash(f"Deleted {filename}", "success")
-    return redirect(url_for("main.list_criteria"))
+        lines.append(f"Criteria {i}: {criteria_title}")
+        lines.append(f"Grade: {awarded}/{maximum}")
+        lines.append("")
+        lines.append("Explanation:")
+        lines.append(justification)
+        lines.append("")
+        lines.append("-" * 50)
+        lines.append("")
+
+    text_content = "\n".join(lines)
+
+    from flask import Response
+
+    response = Response(text_content, mimetype="text/plain; charset=utf-8")
+    response.headers["Content-Disposition"] = f"attachment; filename={exam_name}_review.txt"
+    return response
 
 
 @main_bp.route("/delete/review/<filename>")
@@ -209,10 +326,21 @@ def delete_review(filename):
     return redirect(url_for("main.list_reviews"))
 
 
+@main_bp.route("/delete/reviews-all", methods=["POST"])
+def delete_all_reviews():
+    count = 0
+    for f in os.listdir(REVIEWS_DIR):
+        if f.endswith(".json"):
+            os.remove(os.path.join(REVIEWS_DIR, f))
+            count += 1
+    flash(f"Deleted {count} reviews", "success")
+    return redirect(url_for("main.list_reviews"))
+
+
 @main_bp.route("/reviewer")
 def reviewer():
     exam_files = sorted([f for f in os.listdir(EXAMS_DIR) if f.endswith(".c")])
-    criteria_files = sorted([f for f in os.listdir(CRITERIA_DIR) if f.endswith(".json")])
+    criteria_files = sorted([f for f in os.listdir(CRITERIA_DB_DIR) if f.endswith(".json")])
 
     if not exam_files or not criteria_files:
         return render_template(

@@ -4,9 +4,10 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 EXAMS_DIR = os.path.join(BASE_DIR, "exams")
 CRITERIA_DIR = os.path.join(BASE_DIR, "criteria")
+CRITERIA_DB_DIR = os.path.join(BASE_DIR, "criteria_db")
 REVIEWS_DIR = os.path.join(BASE_DIR, "reviews")
 
-for directory in [EXAMS_DIR, CRITERIA_DIR, REVIEWS_DIR]:
+for directory in [EXAMS_DIR, CRITERIA_DIR, CRITERIA_DB_DIR, REVIEWS_DIR]:
     os.makedirs(directory, exist_ok=True)
 
 ALLOWED_EXTENSIONS = {"c", "json"}

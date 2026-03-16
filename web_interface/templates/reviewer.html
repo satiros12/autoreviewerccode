@@ -74,7 +74,7 @@
                 </select>
             </label>
             <label>
-                Criteria File:
+                Criteria:
                 <select id="criteria-file-select" onchange="loadReviewerData()">
                     {% for criteria in criteria_files %}
                     <option value="{{ criteria }}">{{ criteria }}</option>
@@ -149,7 +149,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <script>
 let currentData = null;
-let currentCriteriaIndex = 0;
+let currentCriteriaFile = null;
+let allCriteriaFiles = [];
 
 function highlightCode() {
     const codeElement = document.getElementById('exam-code');
@@ -159,18 +160,29 @@ function highlightCode() {
     }
 }
 
+function loadAllCriteria() {
+    return fetch('/api/criteria/list')
+        .then(response => response.json())
+        .then(data => {
+            allCriteriaFiles = data.criteria || [];
+            return allCriteriaFiles;
+        });
+}
+
 function loadReviewerData() {
     const examIdx = document.getElementById('exam-select').value;
     const criteriaFile = document.getElementById('criteria-file-select').value;
     
+    currentCriteriaFile = criteriaFile;
+    
     if (!criteriaFile) {
-        document.getElementById('criteria-bar').innerHTML = '<p>No criteria file selected</p>';
+        document.getElementById('criteria-bar').innerHTML = '<p>No criteria selected</p>';
         return;
     }
     
     document.getElementById('exam-code').textContent = 'Loading...';
     
-    fetch(`/api/reviewer/data?exam_idx=${examIdx}&criteria_file=${criteriaFile}&criteria_idx=${currentCriteriaIndex}`)
+    fetch(`/api/reviewer/data?exam_idx=${examIdx}&criteria_file=${encodeURIComponent(criteriaFile)}&criteria_idx=0`)
         .then(response => response.json())
         .then(data => {
             if (data.error) {
@@ -210,26 +222,28 @@ function renderData() {
 }
 
 function renderCriteriaBar() {
-    if (!currentData || !currentData.criteria_with_index) return;
+    if (!currentData || allCriteriaFiles.length === 0) return;
     
     const barContainer = document.getElementById('criteria-bar');
     let html = '';
     
-    currentData.criteria_with_index.forEach((crit, idx) => {
+    allCriteriaFiles.forEach((crit, idx) => {
+        const isCurrent = crit.filename === currentData.criteria_file;
+        
         let isEvaluated = false;
         let score = '';
         
         if (currentData.review_data && currentData.review_data.criteria_evaluations) {
-            const eval = currentData.review_data.criteria_evaluations.find(e => e.criteria_index === idx + 1);
-            if (eval) {
+            const evalItem = currentData.review_data.criteria_evaluations.find(e => e.criteria_filename === crit.filename);
+            if (evalItem) {
                 isEvaluated = true;
-                score = ` (${eval.awarded_score}/${crit.nota_maxima})`;
+                score = ` (${evalItem.awarded_score}/${crit.nota_maxima})`;
             }
         }
         
         html += `
-            <div class="criteria-bar-item ${idx === currentCriteriaIndex ? 'active' : ''}" 
-                 onclick="selectCriteria(${idx})">
+            <div class="criteria-bar-item ${isCurrent ? 'active' : ''}" 
+                 onclick="selectCriteria('${crit.filename}')">
                 <span class="${isEvaluated ? 'evaluated-badge' : 'not-evaluated-badge'}">${isEvaluated ? '✓' : '○'}</span>
                 ${crit.titulo}${score}
             </div>
@@ -237,6 +251,26 @@ function renderCriteriaBar() {
     });
     
     barContainer.innerHTML = html;
+}
+
+function selectCriteria(criteriaFile) {
+    const examIdx = document.getElementById('exam-select').value;
+    document.getElementById('criteria-file-select').value = criteriaFile;
+    currentCriteriaFile = criteriaFile;
+    
+    fetch(`/api/reviewer/data?exam_idx=${examIdx}&criteria_file=${encodeURIComponent(criteriaFile)}&criteria_idx=0`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+            currentData = data;
+            renderData();
+        })
+        .catch(err => {
+            console.error('Error loading criteria:', err);
+        });
 }
 
 function renderCurrentCriteria() {
@@ -259,23 +293,26 @@ function renderCurrentCriteria() {
 }
 
 function renderSummary() {
-    if (!currentData || !currentData.criteria_with_index) return;
+    if (!currentData || allCriteriaFiles.length === 0) return;
     
     const summaryContainer = document.getElementById('summary-list');
     let html = '';
     
-    currentData.criteria_with_index.forEach((crit, idx) => {
+    allCriteriaFiles.forEach(crit => {
+        const isCurrent = crit.filename === currentData.criteria_file;
+        
         let evalData = null;
         if (currentData.review_data && currentData.review_data.criteria_evaluations) {
-            evalData = currentData.review_data.criteria_evaluations.find(e => e.criteria_index === idx + 1);
+            evalData = currentData.review_data.criteria_evaluations.find(e => e.criteria_filename === crit.filename);
         }
         
         const score = evalData ? `${evalData.awarded_score}/${crit.nota_maxima}` : `0/${crit.nota_maxima}`;
         const status = evalData ? '✓' : '○';
         const color = evalData ? '#27ae60' : '#95a5a6';
+        const bgColor = isCurrent ? '#e8f4f8' : 'transparent';
         
         html += `
-            <div class="summary-item" onclick="selectCriteria(${idx})">
+            <div class="summary-item" style="background: ${bgColor};" onclick="selectCriteria('${crit.filename}')">
                 <span style="color: ${color};">${status}</span> 
                 ${crit.titulo} - <strong>${score}</strong>
             </div>
@@ -285,22 +322,9 @@ function renderSummary() {
     summaryContainer.innerHTML = html;
 }
 
-function selectCriteria(idx) {
-    currentCriteriaIndex = idx;
-    if (currentData) {
-        currentData.criteria_idx = idx;
-        currentData.current_criteria = currentData.criteria_data[idx];
-        
-        if (currentData.review_data && currentData.review_data.criteria_evaluations) {
-            currentData.current_evaluation = currentData.review_data.criteria_evaluations.find(
-                e => e.criteria_index === idx + 1
-            );
-        } else {
-            currentData.current_evaluation = null;
-        }
-        
-        renderCriteriaBar();
-        renderCurrentCriteria();
+function selectCriteriaByIndex(idx) {
+    if (idx >= 0 && idx < allCriteriaFiles.length) {
+        selectCriteria(allCriteriaFiles[idx].filename);
     }
 }
 
@@ -309,16 +333,16 @@ function saveEvaluation() {
     
     const criteria = currentData.current_criteria;
     const evaluation = {
-        criteria_index: currentCriteriaIndex + 1,
-        criteria_title: criteria.titulo,
-        criteria_description: criteria.descripcion,
-        maximum_score: criteria.nota_maxima,
+        criteria_filename: currentData.criteria_file,
+        criteria_title: criteria?.titulo || currentData.criteria_file,
+        criteria_description: criteria?.descripcion || '',
+        maximum_score: criteria?.nota_maxima || 0,
         awarded_score: parseFloat(document.getElementById('awarded-score').value) || 0,
         justification: document.getElementById('justification').value,
         subsection_evaluations: []
     };
     
-    if (criteria.subapartados) {
+    if (criteria?.subapartados) {
         criteria.subapartados.forEach(sub => {
             evaluation.subsection_evaluations.push({
                 subsection_name: sub.nombre,
@@ -335,7 +359,7 @@ function saveEvaluation() {
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
             exam_file: currentData.exam_file,
-            criteria_idx: currentCriteriaIndex,
+            criteria_file: currentData.criteria_file,
             evaluation: evaluation
         })
     })
@@ -353,8 +377,13 @@ function saveEvaluation() {
 
 function nextCriteria() {
     if (!currentData) return;
-    if (currentCriteriaIndex < currentData.total_criteria - 1) {
-        selectCriteria(currentCriteriaIndex + 1);
+    const criteriaSelect = document.getElementById('criteria-file-select');
+    const options = criteriaSelect.options;
+    const currentIdx = criteriaSelect.selectedIndex;
+    
+    if (currentIdx < options.length - 1) {
+        criteriaSelect.selectedIndex = currentIdx + 1;
+        loadReviewerData();
     } else {
         alert('Already at last criteria');
     }
@@ -362,8 +391,12 @@ function nextCriteria() {
 
 function prevCriteria() {
     if (!currentData) return;
-    if (currentCriteriaIndex > 0) {
-        selectCriteria(currentCriteriaIndex - 1);
+    const criteriaSelect = document.getElementById('criteria-file-select');
+    const currentIdx = criteriaSelect.selectedIndex;
+    
+    if (currentIdx > 0) {
+        criteriaSelect.selectedIndex = currentIdx - 1;
+        loadReviewerData();
     } else {
         alert('Already at first criteria');
     }
@@ -389,6 +422,10 @@ function prevExam() {
     }
 }
 
-document.addEventListener('DOMContentLoaded', loadReviewerData);
+document.addEventListener('DOMContentLoaded', function() {
+    loadAllCriteria().then(() => {
+        loadReviewerData();
+    });
+});
 </script>
 {% endblock %}

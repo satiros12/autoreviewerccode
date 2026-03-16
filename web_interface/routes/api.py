@@ -1,11 +1,11 @@
-from flask import Blueprint, request, jsonify
-import os
 import json
+import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import time
 
-from config import EXAMS_DIR, CRITERIA_DIR, REVIEWS_DIR
+from flask import Blueprint, jsonify, request
 from services import ExamEvaluator
+
+from config import CRITERIA_DB_DIR, EXAMS_DIR, REVIEWS_DIR
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 
@@ -18,39 +18,50 @@ def get_exams():
 
 @api_bp.route("/files/criteria")
 def get_criteria_files():
-    criteria_files = sorted([f for f in os.listdir(CRITERIA_DIR) if f.endswith(".json")])
+    criteria_files = sorted([f for f in os.listdir(CRITERIA_DB_DIR) if f.endswith(".json")])
     return jsonify({"criteria_files": criteria_files})
+
+
+@api_bp.route("/criteria/list")
+def get_criteria_list():
+    criteria_files = sorted([f for f in os.listdir(CRITERIA_DB_DIR) if f.endswith(".json")])
+
+    criteria_list = []
+    for cf in criteria_files:
+        filepath = os.path.join(CRITERIA_DB_DIR, cf)
+        with open(filepath, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        criteria_list.append(
+            {
+                "filename": cf,
+                "titulo": data.get("titulo", cf),
+                "descripcion": data.get("descripcion", ""),
+                "nota_maxima": data.get("nota_maxima", 0),
+                "subapartados": data.get("subapartados", []),
+            }
+        )
+
+    return jsonify({"criteria": criteria_list})
 
 
 @api_bp.route("/criteria/<criteria_file>")
 def get_criteria(criteria_file):
-    filepath = os.path.join(CRITERIA_DIR, criteria_file)
+    filepath = os.path.join(CRITERIA_DB_DIR, criteria_file)
     if not os.path.exists(filepath):
         return jsonify({"error": "Criteria file not found"}), 404
 
     with open(filepath, "r", encoding="utf-8") as f:
-        criteria_list = json.load(f)
-
-    if not isinstance(criteria_list, list):
-        return jsonify({"error": "Criteria must be a list"})
-
-    criteria_with_index = []
-    for i, crit in enumerate(criteria_list):
-        criteria_with_index.append(
-            {
-                "index": i,
-                "titulo": crit.get("titulo", f"Criteria {i + 1}"),
-                "descripcion": crit.get("descripcion", ""),
-                "nota_maxima": crit.get("nota_maxima", 0),
-                "subapartados": crit.get("subapartados", []),
-            }
-        )
+        criteria = json.load(f)
 
     return jsonify(
         {
             "criteria_file": criteria_file,
-            "total_criteria": len(criteria_list),
-            "criteria": criteria_with_index,
+            "criteria": {
+                "titulo": criteria.get("titulo", ""),
+                "descripcion": criteria.get("descripcion", ""),
+                "nota_maxima": criteria.get("nota_maxima", 0),
+                "subapartados": criteria.get("subapartados", []),
+            },
         }
     )
 
@@ -59,15 +70,15 @@ def get_criteria(criteria_file):
 def save_criteria():
     data = request.json
     criteria_file = data.get("criteria_file")
-    criteria_list = data.get("criteria")
+    criteria = data.get("criteria")
 
-    if not criteria_file or criteria_list is None:
+    if not criteria_file or criteria is None:
         return jsonify({"success": False, "error": "Missing data"})
 
-    filepath = os.path.join(CRITERIA_DIR, criteria_file)
+    filepath = os.path.join(CRITERIA_DB_DIR, criteria_file)
     try:
         with open(filepath, "w", encoding="utf-8") as f:
-            json.dump(criteria_list, f, indent=2, ensure_ascii=False)
+            json.dump(criteria, f, indent=2, ensure_ascii=False)
         return jsonify({"success": True, "message": "Saved"})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
@@ -83,7 +94,7 @@ def run_single_review():
         return jsonify({"success": False, "error": "Missing exam or criteria"})
 
     try:
-        evaluator = ExamEvaluator(CRITERIA_DIR, EXAMS_DIR, REVIEWS_DIR)
+        evaluator = ExamEvaluator(CRITERIA_DB_DIR, EXAMS_DIR, REVIEWS_DIR)
         result = evaluator.run_single_review(exam_file, criteria_file)
         return jsonify({"success": True, "result": result})
     except Exception as e:
@@ -95,14 +106,13 @@ def run_single_criteria_review():
     data = request.json
     exam_file = data.get("exam_file")
     criteria_file = data.get("criteria_file")
-    criteria_index = data.get("criteria_index", 0)
 
     if not exam_file or not criteria_file:
         return jsonify({"success": False, "error": "Missing exam or criteria"})
 
     try:
-        evaluator = ExamEvaluator(CRITERIA_DIR, EXAMS_DIR, REVIEWS_DIR)
-        result = evaluator.run_single_criteria_review(exam_file, criteria_file, criteria_index)
+        evaluator = ExamEvaluator(CRITERIA_DB_DIR, EXAMS_DIR, REVIEWS_DIR)
+        result = evaluator.run_single_criteria_review(exam_file, criteria_file)
         return jsonify({"success": True, "result": result})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
@@ -127,7 +137,7 @@ def run_parallel_review():
 
     def process_exam(exam_file):
         try:
-            evaluator = ExamEvaluator(CRITERIA_DIR, EXAMS_DIR, REVIEWS_DIR)
+            evaluator = ExamEvaluator(CRITERIA_DB_DIR, EXAMS_DIR, REVIEWS_DIR)
             result = evaluator.run_single_review(exam_file, criteria_file)
             return {"exam": exam_file, "success": True, "result": result}
         except Exception as e:
@@ -160,7 +170,6 @@ def run_parallel_criteria_review():
     data = request.json
     criteria_file = data.get("criteria_file")
     max_workers = int(data.get("max_workers", 2))
-    target_criteria_index = data.get("criteria_index")
 
     exam_files = sorted([f for f in os.listdir(EXAMS_DIR) if f.endswith(".c")])
 
@@ -175,10 +184,8 @@ def run_parallel_criteria_review():
 
     def process_exam(exam_file):
         try:
-            evaluator = ExamEvaluator(CRITERIA_DIR, EXAMS_DIR, REVIEWS_DIR)
-            result = evaluator.run_single_criteria_review(
-                exam_file, criteria_file, target_criteria_index
-            )
+            evaluator = ExamEvaluator(CRITERIA_DB_DIR, EXAMS_DIR, REVIEWS_DIR)
+            result = evaluator.run_single_criteria_review(exam_file, criteria_file)
             return {"exam": exam_file, "success": True, "result": result}
         except Exception as e:
             return {"exam": exam_file, "success": False, "error": str(e)}
@@ -214,7 +221,7 @@ def run_batch_review():
         return jsonify({"success": False, "error": "Missing criteria file"})
 
     try:
-        evaluator = ExamEvaluator(CRITERIA_DIR, EXAMS_DIR, REVIEWS_DIR)
+        evaluator = ExamEvaluator(CRITERIA_DB_DIR, EXAMS_DIR, REVIEWS_DIR)
         count = evaluator.run_all_reviews(criteria_file)
         return jsonify({"success": True, "count": count})
     except Exception as e:
@@ -224,7 +231,7 @@ def run_batch_review():
 @api_bp.route("/reviewer/data")
 def reviewer_data():
     exam_files = sorted([f for f in os.listdir(EXAMS_DIR) if f.endswith(".c")])
-    criteria_files = sorted([f for f in os.listdir(CRITERIA_DIR) if f.endswith(".json")])
+    criteria_files = sorted([f for f in os.listdir(CRITERIA_DB_DIR) if f.endswith(".json")])
 
     exam_idx = int(request.args.get("exam_idx", 0))
     criteria_file = request.args.get("criteria_file", criteria_files[0] if criteria_files else None)
@@ -239,7 +246,7 @@ def reviewer_data():
     with open(exam_path, "r", encoding="utf-8") as f:
         exam_content = f.read()
 
-    criteria_path = os.path.join(CRITERIA_DIR, criteria_file)
+    criteria_path = os.path.join(CRITERIA_DB_DIR, criteria_file)
     with open(criteria_path, "r", encoding="utf-8") as f:
         criteria_data = json.load(f)
 
@@ -252,21 +259,9 @@ def reviewer_data():
     current_evaluation = None
     if review_data and review_data.get("criteria_evaluations"):
         for eval_item in review_data.get("criteria_evaluations", []):
-            if eval_item.get("criteria_index") == criteria_idx + 1:
+            if eval_item.get("criteria_filename") == criteria_file:
                 current_evaluation = eval_item
                 break
-
-    criteria_with_index = []
-    for i, crit in enumerate(criteria_data):
-        criteria_with_index.append(
-            {
-                "index": i,
-                "titulo": crit.get("titulo", f"Criteria {i + 1}"),
-                "descripcion": crit.get("descripcion", ""),
-                "nota_maxima": crit.get("nota_maxima", 0),
-                "subapartados": crit.get("subapartados", []),
-            }
-        )
 
     return jsonify(
         {
@@ -274,15 +269,12 @@ def reviewer_data():
             "criteria_file": criteria_file,
             "exam_content": exam_content,
             "criteria_data": criteria_data,
-            "criteria_with_index": criteria_with_index,
             "review_data": review_data,
             "exam_idx": exam_idx,
             "criteria_idx": criteria_idx,
             "total_exams": len(exam_files),
-            "total_criteria": len(criteria_data),
-            "current_criteria": criteria_data[criteria_idx]
-            if criteria_idx < len(criteria_data)
-            else None,
+            "total_criteria": len(criteria_files),
+            "current_criteria": criteria_data,
             "current_evaluation": current_evaluation,
         }
     )
@@ -293,7 +285,7 @@ def save_evaluation():
     data = request.json
 
     exam_file = data.get("exam_file")
-    criteria_idx = data.get("criteria_idx")
+    criteria_file = data.get("criteria_file")
     evaluation = data.get("evaluation")
 
     review_file = os.path.join(REVIEWS_DIR, f"{os.path.splitext(exam_file)[0]}_review.json")
@@ -313,7 +305,7 @@ def save_evaluation():
 
     found = False
     for i, eval_item in enumerate(review_data["criteria_evaluations"]):
-        if eval_item.get("criteria_index") == criteria_idx + 1:
+        if eval_item.get("criteria_filename") == criteria_file:
             review_data["criteria_evaluations"][i] = evaluation
             found = True
             break
