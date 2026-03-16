@@ -1,0 +1,294 @@
+Problem: Video Game Store Management
+
+Description:
+
+
+
+A reduced version of an application to manage a video game store is to be implemented.
+
+For each video game, the following attributes must be stored:
+
+Name. The maximum number of characters for the video game name is 15.
+Console. The console for which the video game is designed. The possible consoles are: PLAYSTATION, XBOX, and SWITCH.
+Price. A real number measured in euros.
+Stock. An integer indicating the number of units available for sale.
+The store can have a maximum of 50 video games.
+
+The program must:
+
+Allow the user to enter the above attributes for each video game.
+If the user enters a console option that is not one of the valid choices (PLAYSTATION, XBOX, SWITCH), the default option PLAYSTATION will be assigned.
+When asking the user to enter the console, the program must display:
+         PLAYSTATION
+
+         XBOX
+
+         SWITCH
+
+         In this way, the user will enter 1, 2, or 3 depending on the desired console.
+
+Display the complete list of video games in the store with all their attributes.
+The program must select video games that run on a given console and whose price is below a given value. For this, the program will receive these two pieces of information as command-line arguments of main.
+The program must implement the following menu:
+
+Add video game
+Show store video games
+Select video games by console/price
+Exit
+The use of an enumeration for each menu option will be valued.
+
+
+
+Remember that structures and enumerations must be used. 
+
+
+
+The following functions must be used:
+
+/* Function to read a line of text /
+
+void readLine(char *string, int size);
+
+
+
+/* Function that inputs the attributes of a video game /
+
+VideoGame_t enterVideoGame();
+
+
+
+/ Function that displays the store's video games with their attributes */
+
+void showVideoGames(VideoGame_t *store, int count);
+
+
+
+/ Function that displays the store's video games that match the filter */
+
+void selectVideoGames(VideoGame_t *store, int count, Console_e filterConsole, float maxPrice);
+
+
+
+The use of the following functions from the <stdlib.h> library is allowed:
+
+atoi, strtol, atof, and strtof. Their prototypes are:
+
+
+
+// Converts a string to an integer (int)
+
+int atoi(const char *str);
+
+
+
+// Converts a string to a long number with a specified base
+
+long strtol(const char *str, char **endptr, int base);
+
+
+
+// Converts a string to a double-precision floating-point number (double)
+
+double atof(const char str);
+
+ 
+
+// Converts a string to a single-precision floating-point number (float)
+
+float strtof(const char str, char endptr);
+
+ 
+
+
+
+Example of execution:
+
+
+
+$ ./videogames_managment_2.exe
+
+Usage: ./gestion_videojuegos_2 <console(1-PLAYSTATION,2-XBOX,3-SWITCH)> <max_price>
+
+
+
+$ ./videogames_managment_2.exe 1 10.50
+
+
+
+---- VIDEO GAME STORE MENU ----
+
+1. Add video game
+
+2. Show store video games
+
+3. Select video games by console/price
+
+4. Exit
+
+Option: 1
+
+Video game name (max 15 characters): Minecraft
+
+Select console:
+
+1 - PLAYSTATION
+
+2 - XBOX
+
+3 - SWITCH
+
+Option: 1
+
+Price (€): 10.10
+
+Stock: 1
+
+
+
+---- VIDEO GAME STORE MENU ----
+
+1. Add video game
+
+2. Show store video games
+
+3. Select video games by console/price
+
+4. Exit
+
+Option: 1
+
+Video game name (max 15 characters): Tetris
+
+Select console:
+
+1 - PLAYSTATION
+
+2 - XBOX
+
+3 - SWITCH
+
+Option: 2
+
+Price (€): 12.12
+
+Stock: 2
+
+
+
+---- VIDEO GAME STORE MENU ----
+
+1. Add video game
+
+2. Show store video games
+
+3. Select video games by console/price
+
+4. Exit
+
+Option: 1
+
+Video game name (max 15 characters): Wii Sports
+
+Select console:
+
+1 - PLAYSTATION
+
+2 - XBOX
+
+3 - SWITCH
+
+Option: 3
+
+Price (€): 11.11
+
+Stock: 3
+
+
+
+---- VIDEO GAME STORE MENU ----
+
+1. Add video game
+
+2. Show store video games
+
+3. Select video games by console/price
+
+4. Exit
+
+Option: 2
+
+
+
+Video game 1
+
+Name: Minecraft
+
+Console: PLAYSTATION
+
+Price: 10.10 €
+
+Stock: 1
+
+
+
+Video game 2
+
+Name: Tetris
+
+Console: XBOX
+
+Price: 12.12 €
+
+Stock: 2
+
+
+
+Video game 3
+
+Name: Wii Sports
+
+Console: SWITCH
+
+Price: 11.11 €
+
+Stock: 3
+
+
+
+---- VIDEO GAME STORE MENU ----
+
+1. Add video game
+
+2. Show store video games
+
+3. Select video games by console/price
+
+4. Exit
+
+Option: 3
+
+
+
+Name: Minecraft
+
+Console: PLAYSTATION
+
+Price: 10.00 €
+
+Stock: 1
+
+
+
+---- VIDEO GAME STORE MENU ----
+
+1. Add video game
+
+2. Show store video games
+
+3. Select video games by console/price
+
+4. Exit
+
+Option: 4
+
+Exiting program...

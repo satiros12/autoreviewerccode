@@ -1,0 +1,306 @@
+[
+  {
+    "titulo": "Orden correcto, correcta indentacón, Uso correcto de variables",
+    "descripcion": "Orden correcto, correcta indentacón, Uso correcto de variables — Claridad en la estructura del programa/variables/comentarios",
+    "nota_maxima": 1,
+    "subapartados": [
+      {
+        "nombre": "Estructura general del programa",
+        "descripcion": "Orden lógico: includes, definiciones (struct, enum, typedef), prototipos, main, funciones.",
+        "puntos": 0.25,
+        "penalizacion_min": -0.25
+      },
+      {
+        "nombre": "Indentación consistente",
+        "descripcion": "Sangrado uniforme en bloques de código, funciones y estructuras de control.",
+        "puntos": 0.25,
+        "penalizacion_min": -0.25
+      },
+      {
+        "nombre": "Uso correcto de variables",
+        "descripcion": "Declaración en scope adecuado, nombres descriptivos, tipos apropiados.",
+        "puntos": 0.25,
+        "penalizacion_min": -0.25
+      },
+      {
+        "nombre": "Claridad y comentarios",
+        "descripcion": "Comentarios donde sea necesario, código legible, sin código muerto.",
+        "puntos": 0.25,
+        "penalizacion_min": -0.25
+      },
+      {
+        "nombre": "Código ilegible (anulador)",
+        "descripcion": "Indentación caótica, falta total de estructura, minificación excesiva.",
+        "puntos": 0,
+        "penalizacion_min": -1,
+        "anulador": true
+      }
+    ]
+  },
+  {
+    "titulo": "Declaración y usos tanto con operadores '.' y  '->'",
+    "descripcion": "Declaración y usos tanto con operadores '.' y  '->' — Estructuras",
+    "nota_maxima": 1,
+    "subapartados": [
+      {
+        "nombre": "Declaración de estructura VideoGame_t",
+        "descripcion": "Estructura correctamente definida con campos: char NAME[16], int CONSOLE, float PRICE, int STOCK.",
+        "puntos": 0.25,
+        "penalizacion_min": -0.25
+      },
+      {
+        "nombre": "Uso correcto de '.' para acceso directo",
+        "descripcion": "Acceso a campos de estructura por valor (ej: game.PRICE, game.STOCK).",
+        "puntos": 0.25,
+        "penalizacion_min": -0.25
+      },
+      {
+        "nombre": "Uso correcto de '->' para acceso por puntero",
+        "descripcion": "Acceso a campos de estructura por puntero (ej: store[i]->NAME, ptr->CONSOLE).",
+        "puntos": 0.25,
+        "penalizacion_min": -0.25
+      },
+      {
+        "nombre": "Arreglo de estructuras",
+        "descripcion": "Uso correcto de VideoGame_t store[MAX_GAMES] o VideoGame_t *store con malloc.",
+        "puntos": 0.25,
+        "penalizacion_min": -0.25
+      },
+      {
+        "nombre": "Confusión '.' vs '->' (anulador)",
+        "descripcion": "Uso sistemático incorrecto que invalida compilación o funcionamiento.",
+        "puntos": 0,
+        "penalizacion_min": -1.5,
+        "anulador": true
+      }
+    ]
+  },
+  {
+    "titulo": "Introducción /presentación/selección",
+    "descripcion": "Introducción /presentación/selección — Enum y typedef",
+    "nota_maxima": 1,
+    "subapartados": [
+      {
+        "nombre": "Enum Console_e",
+        "descripcion": "Enumeración definida para PLAYSTATION=1, XBOX=2, SWITCH=3.",
+        "puntos": 0.25,
+        "penalizacion_min": -0.25
+      },
+      {
+        "nombre": "Typedef para VideoGame_t",
+        "descripcion": "Typedef struct {...} VideoGame_t correctamente implementado.",
+        "puntos": 0.25,
+        "penalizacion_min": -0.25
+      },
+      {
+        "nombre": "Presentación del menú",
+        "descripcion": "Menú mostrado correctamente con opciones 1-4 y encabezado 'VIDEO GAME STORE MENU'.",
+        "puntos": 0.25,
+        "penalizacion_min": -0.25
+      },
+      {
+        "nombre": "Selección y validación de opción",
+        "descripcion": "Lectura de opción del usuario, validación de rango (1-4), manejo de entrada inválida.",
+        "puntos": 0.25,
+        "penalizacion_min": -0.25
+      },
+      {
+        "nombre": "Selección peligrosa (anulador)",
+        "descripcion": "Opción conduce a comportamiento indefinido o salida corrupta (ej: acceso fuera de array).",
+        "puntos": 0,
+        "penalizacion_min": -1,
+        "anulador": true
+      }
+    ]
+  },
+  {
+    "titulo": "Uso de argv como cadena y limitación del argc",
+    "descripcion": "Uso de argv como cadena y limitación del argc — argc/argv",
+    "nota_maxima": 2,
+    "subapartados": [
+      {
+        "nombre": "Validación de argc",
+        "descripcion": "Comprobación de que argc == 3, muestra mensaje de uso si no.",
+        "puntos": 0.5,
+        "penalizacion_min": -0.5
+      },
+      {
+        "nombre": "Conversión de argv[1] a entero",
+        "descripcion": "Uso de atoi/strtol para convertir argv[1] a Console_e (1-3).",
+        "puntos": 0.5,
+        "penalizacion_min": -0.5
+      },
+      {
+        "nombre": "Conversión de argv[2] a float",
+        "descripcion": "Uso de atof/strtof para convertir argv[2] a float maxPrice.",
+        "puntos": 0.5,
+        "penalizacion_min": -0.5
+      },
+      {
+        "nombre": "Validación de rangos",
+        "descripcion": "Verificar que console esté en 1-3 y maxPrice sea positivo.",
+        "puntos": 0.25,
+        "penalizacion_min": -0.25
+      },
+      {
+        "nombre": "Mensaje de error/ayuda",
+        "descripcion": "Mensaje claro mostrando formato: './programa <console(1-3)> <max_price>'.",
+        "puntos": 0.25,
+        "penalizacion_min": -0.25
+      },
+      {
+        "nombre": "Fallo crítico en argumentos (anulador)",
+        "descripcion": "Acceso a argv[0], argv[1], argv[2] fuera de rango, omisión de validación que causa segfault.",
+        "puntos": 0,
+        "penalizacion_min": -2,
+        "anulador": true
+      }
+    ]
+  },
+  {
+    "titulo": "Invocación y cuerpo",
+    "descripcion": "Invocación y cuerpo — Funciones leeLinea e presentarVideojuegos",
+    "nota_maxima": 1,
+    "subapartados": [
+      {
+        "nombre": "Función readLine",
+        "descripcion": "void readLine(char *string, int size) implementada correctamente.",
+        "puntos": 0.25,
+        "penalizacion_min": -0.25
+      },
+      {
+        "nombre": "readLine: lectura segura",
+        "descripcion": "Uso de fgets o similar, manejo de newline, terminación con '\\0'.",
+        "puntos": 0.25,
+        "penalizacion_min": -0.25
+      },
+      {
+        "nombre": "Función showVideoGames",
+        "descripcion": "void showVideoGames(VideoGame_t *store, int count) implementada.",
+        "puntos": 0.25,
+        "penalizacion_min": -0.25
+      },
+      {
+        "nombre": "showVideoGames: presentación",
+        "descripcion": "Muestra todos los videojuegos con formato: 'Video game X\\nName: ...\\nConsole: ...\\nPrice: ... €\\nStock: ...'.",
+        "puntos": 0.25,
+        "penalizacion_min": -0.25
+      },
+      {
+        "nombre": "Llamadas con efectos destructivos (anulador)",
+        "descripcion": "Modifica estados globales/recursos de forma no controlada, corrupción de datos.",
+        "puntos": 0,
+        "penalizacion_min": -1.2,
+        "anulador": true
+      }
+    ]
+  },
+  {
+    "titulo": "Invocación y cuerpo",
+    "descripcion": "Invocación y cuerpo — Función introducirVideojuego y seleccionarVidejuegos",
+    "nota_maxima": 3,
+    "subapartados": [
+      {
+        "nombre": "Función enterVideoGame: declaración",
+        "descripcion": "VideoGame_t enterVideoGame() declarada con tipo de retorno correcto.",
+        "puntos": 0.5,
+        "penalizacion_min": -0.5
+      },
+      {
+        "nombre": "enterVideoGame: entrada de nombre",
+        "descripcion": "Solicita nombre (max 15 chars), usa readLine, valida longitud.",
+        "puntos": 0.5,
+        "penalizacion_min": -0.5
+      },
+      {
+        "nombre": "enterVideoGame: selección de consola",
+        "descripcion": "Muestra opciones 1-3, lee entrada, asigna PLAYSTATION por defecto si inválido.",
+        "puntos": 0.5,
+        "penalizacion_min": -0.5
+      },
+      {
+        "nombre": "enterVideoGame: entrada de precio y stock",
+        "descripcion": "Lee price (float) y stock (int), validaciones básicas.",
+        "puntos": 0.5,
+        "penalizacion_min": -0.5
+      },
+      {
+        "nombre": "Función selectVideoGames: declaración",
+        "descripcion": "void selectVideoGames(VideoGame_t *store, int count, Console_e filterConsole, float maxPrice) correcta.",
+        "puntos": 0.5,
+        "penalizacion_min": -0.5
+      },
+      {
+        "nombre": "selectVideoGames: filtrado por consola",
+        "descripcion": "Compara store[i].CONSOLE con filterConsole.",
+        "puntos": 0.25,
+        "penalizacion_min": -0.25
+      },
+      {
+        "nombre": "selectVideoGames: filtrado por precio",
+        "descripcion": "Compara store[i].PRICE <= maxPrice.",
+        "puntos": 0.25,
+        "penalizacion_min": -0.25
+      },
+      {
+        "nombre": "Corrupción de datos (anulador)",
+        "descripcion": "Escrituras fuera de límites del array store[MAX_GAMES], pérdida de integridad.",
+        "puntos": 0,
+        "penalizacion_min": -3,
+        "anulador": true
+      },
+      {
+        "nombre": "Uso inseguro de memoria (anulador severo)",
+        "descripcion": "Fugas masivas, dobles liberaciones, acceso a memoria no inicializada.",
+        "puntos": 0,
+        "penalizacion_min": -4.5,
+        "anulador": true
+      }
+    ]
+  },
+  {
+    "titulo": "Compilación/ Ejecución correcta",
+    "descripcion": "Compilación/ Ejecución correcta",
+    "nota_maxima": 1,
+    "subapartados": [
+      {
+        "nombre": "Compila sin warnings críticos",
+        "descripcion": "Compila con -Wall -Wextra -Werror sin warnings de tipos/memoria.",
+        "puntos": 0.25,
+        "penalizacion_min": -0.25
+      },
+      {
+        "nombre": "Ejecución estable (casos básicos)",
+        "descripcion": "Pruebas básicas sin segfaults: menú muestra, opciones 1-4 funcionan.",
+        "puntos": 0.25,
+        "penalizacion_min": -0.25
+      },
+      {
+        "nombre": "Manejo de argumentos correcto",
+        "descripcion": "./programa sin args muestra ayuda, con args válidos ejecuta.",
+        "puntos": 0.25,
+        "penalizacion_min": -0.25
+      },
+      {
+        "nombre": "Funcionalidad completa",
+        "descripcion": "Todas las funciones requeridas implementadas y llamadas.",
+        "puntos": 0.25,
+        "penalizacion_min": -0.25
+      },
+      {
+        "nombre": "No compila (anulador)",
+        "descripcion": "Errores de compilación que impiden generar binario.",
+        "puntos": 0,
+        "penalizacion_min": -1,
+        "anulador": true
+      },
+      {
+        "nombre": "Ejecución peligrosa (anulador severo)",
+        "descripcion": "Cuelgues infinitos, sobrescrituras de memoria, comportamiento indefinido reproducible.",
+        "puntos": 0,
+        "penalizacion_min": -1.8,
+        "anulador": true
+      }
+    ]
+  }
+]
