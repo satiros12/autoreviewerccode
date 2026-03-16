@@ -4,14 +4,21 @@
 {% block extra_css %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
 <style>
-    .reviewer-container { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; min-height: calc(100vh - 200px); }
+    .reviewer-layout { display: grid; grid-template-columns: 250px 1fr 1fr; gap: 1rem; min-height: calc(100vh - 180px); }
+    .criteria-sidebar { background: white; padding: 1rem; border-radius: 8px; overflow-y: auto; max-height: calc(100vh - 180px); }
+    .criteria-item { padding: 0.75rem; margin-bottom: 0.5rem; border-radius: 4px; cursor: pointer; border: 1px solid #ddd; }
+    .criteria-item:hover { background: #f0f0f0; }
+    .criteria-item.active { background: #3498db; color: white; border-color: #2980b9; }
+    .criteria-item .criteria-title { font-weight: 500; font-size: 0.9rem; }
+    .criteria-item .criteria-score { font-size: 0.8rem; opacity: 0.8; }
+    .reviewer-container { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
     .reviewer-panel { background: white; padding: 1rem; border-radius: 8px; overflow-y: auto; }
-    .code-panel { background: white; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; max-height: calc(100vh - 220px); }
+    .code-panel { background: white; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; max-height: calc(100vh - 400px); }
     .code-panel pre { margin: 0; padding: 1rem; background: white !important; }
     .code-panel code { font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 0.85rem; line-height: 1.5; }
-    .code-header { background: #f8f9fa; padding: 0.5rem 1rem; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; }
-    .nav-bar { display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; }
-    .nav-info { flex-grow: 1; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+    .code-header { background: #f8f9fa; padding: 0.5rem 1rem; border-bottom: 1px solid #ddd; }
+    .nav-bar { display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; justify-content: space-between; }
+    .nav-info { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
     .nav-info label { display: flex; align-items: center; gap: 0.5rem; }
     .nav-info select { padding: 0.3rem; border-radius: 4px; border: 1px solid #ddd; }
     .criteria-display { background: #f8f9fa; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; border-left: 4px solid #3498db; }
@@ -28,19 +35,20 @@
     .evaluation-form label { display: block; margin-bottom: 0.3rem; font-weight: 500; }
     .evaluation-form input, .evaluation-form textarea { width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; }
     .evaluation-form textarea { resize: vertical; }
-    .auto-score { color: #27ae60; font-weight: bold; }
     .nav-buttons { display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; }
     .position-info { background: #e8f4f8; padding: 0.5rem 1rem; border-radius: 4px; font-weight: 500; }
+    .total-score { font-size: 1.2rem; font-weight: bold; color: #27ae60; }
+    .evaluated-badge { background: #27ae60; color: white; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.75rem; }
+    .not-evaluated-badge { background: #95a5a6; color: white; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.75rem; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="card" style="margin-bottom: 1rem;">
     <div class="nav-bar">
-        <h2 style="margin: 0;">Interactive Reviewer</h2>
-        <div class="position-info" id="position-info">Loading...</div>
-    </div>
-    <div class="nav-bar">
+        <div>
+            <h2 style="margin: 0;">Interactive Reviewer</h2>
+        </div>
         <div class="nav-info">
             <label>
                 Exam:
@@ -51,13 +59,15 @@
                 </select>
             </label>
             <label>
-                Criteria:
-                <select id="criteria-select" onchange="loadReviewerData()">
+                Criteria File:
+                <select id="criteria-file-select" onchange="loadReviewerData()">
                     {% for criteria in criteria_files %}
-                    <option value="{{ loop.index0 }}">{{ criteria }}</option>
+                    <option value="{{ criteria }}">{{ criteria }}</option>
                     {% endfor %}
                 </select>
             </label>
+            <span class="position-info" id="position-info">Loading...</span>
+            <span class="total-score" id="total-score">0/0</span>
         </div>
     </div>
 </div>
@@ -67,64 +77,78 @@
     <p>{{ error }}</p>
 </div>
 {% else %}
-<div class="reviewer-container">
-    <div class="reviewer-panel code-panel">
-        <div class="code-header">
-            <span>Exam Code</span>
-            <span style="color: #666; font-size: 0.85rem;">C</span>
-        </div>
-        <pre><code class="language-c" id="exam-code">Loading...</code></pre>
+<div class="reviewer-layout">
+    <div class="criteria-sidebar">
+        <h3 style="margin-bottom: 1rem;">Criteria List</h3>
+        <div id="criteria-list"></div>
     </div>
     
-    <div class="reviewer-panel">
-        <h3>Current Criteria Evaluation</h3>
-        <div id="criteria-section">
-            <div id="current-criteria"></div>
-            
-            <div class="evaluation-form">
-                <h4>Edit Evaluation</h4>
-                <form id="evaluation-form">
-                    <div class="form-group">
-                        <label>Maximum Score:</label>
-                        <input type="text" id="max-score" readonly style="background: #f0f0f0;">
-                    </div>
-                    <div class="form-group">
-                        <label>Awarded Score:</label>
-                        <input type="number" id="awarded-score" step="0.1" min="0">
-                    </div>
-                    <div class="form-group">
-                        <label>Justification:</label>
-                        <textarea id="justification" rows="4" placeholder="Enter your evaluation justification..."></textarea>
-                    </div>
-                    
-                    <div class="nav-buttons">
-                        <button type="button" class="btn btn-save btn-nav" onclick="saveEvaluation()">Save</button>
-                        <button type="button" class="btn btn-prev btn-nav" onclick="prevCriteria()">Prev Criteria</button>
-                        <button type="button" class="btn btn-next btn-nav" onclick="nextCriteria()">Next Criteria</button>
-                    </div>
-                </form>
+    <div class="reviewer-container" style="grid-column: 2 / 4;">
+        <div class="reviewer-panel code-panel">
+            <div class="code-header">
+                <span>Exam Code</span>
+                <span style="color: #666; font-size: 0.85rem;">C</span>
             </div>
-            
-            <div style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                <button type="button" class="btn btn-nav" onclick="prevExam()">Prev Exam</button>
-                <button type="button" class="btn btn-nav" onclick="nextExam()">Next Exam</button>
+            <pre><code class="language-c" id="exam-code">Loading...</code></pre>
+        </div>
+        
+        <div class="reviewer-panel">
+            <h3>Current Criteria Evaluation</h3>
+            <div id="criteria-section">
+                <div id="current-criteria"></div>
+                
+                <div class="evaluation-form">
+                    <h4>Edit Evaluation</h4>
+                    <form id="evaluation-form">
+                        <div class="form-group">
+                            <label>Maximum Score:</label>
+                            <input type="text" id="max-score" readonly style="background: #f0f0f0;">
+                        </div>
+                        <div class="form-group">
+                            <label>Awarded Score:</label>
+                            <input type="number" id="awarded-score" step="0.1" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Justification:</label>
+                            <textarea id="justification" rows="4" placeholder="Enter your evaluation justification..."></textarea>
+                        </div>
+                        
+                        <div class="nav-buttons">
+                            <button type="button" class="btn btn-save btn-nav" onclick="saveEvaluation()">Save</button>
+                            <button type="button" class="btn btn-prev btn-nav" onclick="prevCriteria()">Prev</button>
+                            <button type="button" class="btn btn-next btn-nav" onclick="nextCriteria()">Next</button>
+                        </div>
+                    </form>
+                </div>
+                
+                <div style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-nav" onclick="prevExam()">Prev Exam</button>
+                    <button type="button" class="btn btn-nav" onclick="nextExam()">Next Exam</button>
+                </div>
             </div>
         </div>
     </div>
 </div>
 {% endif %}
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <script>
 let currentData = null;
+let currentCriteriaIndex = 0;
 
 function loadReviewerData() {
     const examIdx = document.getElementById('exam-select').value;
-    const criteriaIdx = document.getElementById('criteria-select').value;
+    const criteriaFile = document.getElementById('criteria-file-select').value;
+    
+    if (!criteriaFile) {
+        document.getElementById('criteria-list').innerHTML = '<p>No criteria file selected</p>';
+        return;
+    }
     
     document.getElementById('exam-code').textContent = 'Loading...';
     document.getElementById('current-criteria').innerHTML = '<div class="loading">Loading...</div>';
     
-    fetch(`/api/reviewer/data?exam_idx=${examIdx}&criteria_idx=${criteriaIdx}`)
+    fetch(`/api/reviewer/data?exam_idx=${examIdx}&criteria_file=${criteriaFile}&criteria_idx=${currentCriteriaIndex}`)
         .then(response => response.json())
         .then(data => {
             if (data.error) {
@@ -144,9 +168,54 @@ function renderData() {
     if (!currentData) return;
     
     document.getElementById('exam-code').textContent = currentData.exam_content;
-    highlightCode();
+    hljs.highlightAll();
+    
     document.getElementById('position-info').textContent = 
-        `Exam ${currentData.exam_idx + 1}/${currentData.total_exams} | Criteria ${currentData.criteria_idx + 1}/${currentData.total_criteria}`;
+        `Exam ${currentData.exam_idx + 1}/${currentData.total_exams}`;
+    
+    document.getElementById('total-score').textContent = 
+        `${currentData.review_data?.overall_score || 0}/${currentData.review_data?.maximum_possible_score || 0}`;
+    
+    renderCriteriaList();
+    renderCurrentCriteria();
+}
+
+function renderCriteriaList() {
+    if (!currentData || !currentData.criteria_with_index) return;
+    
+    const listContainer = document.getElementById('criteria-list');
+    let html = '';
+    
+    currentData.criteria_with_index.forEach((crit, idx) => {
+        let score = '';
+        let isEvaluated = false;
+        
+        if (currentData.review_data && currentData.review_data.criteria_evaluations) {
+            const eval = currentData.review_data.criteria_evaluations.find(e => e.criteria_index === idx + 1);
+            if (eval) {
+                score = `Score: ${eval.awarded_score}/${crit.nota_maxima}`;
+                isEvaluated = true;
+            }
+        }
+        
+        html += `
+            <div class="criteria-item ${idx === currentCriteriaIndex ? 'active' : ''}" 
+                 onclick="selectCriteria(${idx})">
+                <div class="criteria-title">${crit.titulo}</div>
+                <div class="criteria-score">
+                    ${isEvaluated ? `<span class="evaluated-badge">✓</span> ` : `<span class="not-evaluated-badge">○</span> `}
+                    ${crit.nota_maxima} pts
+                    ${score ? `- ${score}` : ''}
+                </div>
+            </div>
+        `;
+    });
+    
+    listContainer.innerHTML = html;
+}
+
+function renderCurrentCriteria() {
+    if (!currentData || !currentData.current_criteria) return;
     
     const criteria = currentData.current_criteria;
     const evaluation = currentData.current_evaluation;
@@ -190,12 +259,31 @@ function renderData() {
     }
 }
 
+function selectCriteria(idx) {
+    currentCriteriaIndex = idx;
+    if (currentData) {
+        currentData.criteria_idx = idx;
+        currentData.current_criteria = currentData.criteria_data[idx];
+        
+        if (currentData.review_data && currentData.review_data.criteria_evaluations) {
+            currentData.current_evaluation = currentData.review_data.criteria_evaluations.find(
+                e => e.criteria_index === idx + 1
+            );
+        } else {
+            currentData.current_evaluation = null;
+        }
+        
+        renderCriteriaList();
+        renderCurrentCriteria();
+    }
+}
+
 function saveEvaluation() {
     if (!currentData) return;
     
     const criteria = currentData.current_criteria;
     const evaluation = {
-        criteria_index: currentData.criteria_idx + 1,
+        criteria_index: currentCriteriaIndex + 1,
         criteria_title: criteria.titulo,
         criteria_description: criteria.descripcion,
         maximum_score: criteria.nota_maxima,
@@ -221,7 +309,7 @@ function saveEvaluation() {
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
             exam_file: currentData.exam_file,
-            criteria_idx: currentData.criteria_idx,
+            criteria_idx: currentCriteriaIndex,
             evaluation: evaluation
         })
     })
@@ -229,6 +317,7 @@ function saveEvaluation() {
     .then(data => {
         if (data.success) {
             alert('Saved!');
+            loadReviewerData();
         } else {
             alert('Error: ' + data.message);
         }
@@ -238,10 +327,8 @@ function saveEvaluation() {
 
 function nextCriteria() {
     if (!currentData) return;
-    if (currentData.criteria_idx < currentData.total_criteria - 1) {
-        saveEvaluation();
-        document.getElementById('criteria-select').value = currentData.criteria_idx + 1;
-        loadReviewerData();
+    if (currentCriteriaIndex < currentData.total_criteria - 1) {
+        selectCriteria(currentCriteriaIndex + 1);
     } else {
         alert('Already at last criteria');
     }
@@ -249,10 +336,8 @@ function nextCriteria() {
 
 function prevCriteria() {
     if (!currentData) return;
-    if (currentData.criteria_idx > 0) {
-        saveEvaluation();
-        document.getElementById('criteria-select').value = currentData.criteria_idx - 1;
-        loadReviewerData();
+    if (currentCriteriaIndex > 0) {
+        selectCriteria(currentCriteriaIndex - 1);
     } else {
         alert('Already at first criteria');
     }
@@ -261,7 +346,7 @@ function prevCriteria() {
 function nextExam() {
     if (!currentData) return;
     if (currentData.exam_idx < currentData.total_exams - 1) {
-        saveEvaluation();
+        currentCriteriaIndex = 0;
         document.getElementById('exam-select').value = currentData.exam_idx + 1;
         loadReviewerData();
     } else {
@@ -272,7 +357,7 @@ function nextExam() {
 function prevExam() {
     if (!currentData) return;
     if (currentData.exam_idx > 0) {
-        saveEvaluation();
+        currentCriteriaIndex = 0;
         document.getElementById('exam-select').value = currentData.exam_idx - 1;
         loadReviewerData();
     } else {
@@ -281,11 +366,5 @@ function prevExam() {
 }
 
 document.addEventListener('DOMContentLoaded', loadReviewerData);
-</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-<script>
-    function highlightCode() {
-        hljs.highlightAll();
-    }
 </script>
 {% endblock %}
