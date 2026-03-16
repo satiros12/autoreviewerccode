@@ -7,26 +7,27 @@ CExams/
 ├── Exams/                    # Exam files (.c files)
 ├── criteria/                 # Evaluation criteria and rubrics
 │   ├── evaluation_improved.json
-│   ├── evaluation.json
-│   ├── evaluation_criteria.csv
-│   └── IP1_RUB/             # Additional rubric files
-├── scripts/                  # Python scripts
-│   ├── exam_reviewer.py     # Main review script
-│   ├── main.py              # Entry point
-│   ├── quick_test.py        # Quick test script
-│   └── test_*.py            # Various test scripts
-├── reviews/                  # JSON review outputs
-├── tests/                    # Test files (to be populated)
-├── docs/                     # Documentation
-│   ├── INSTRUCTIONS.md
-│   └── Exam_Description.txt
-├── config/                   # Configuration files
-│   ├── pyproject.toml
-│   ├── uv.lock
-│   └── .python-version
+│   ├── OLD/                  # Deprecated criteria files
+│   └── OLD_IP1/              # Old IP1 rubrics
 ├── src/                      # Source code package
 │   └── cexams/
-└── .git/                     # Git repository
+│       ├── __init__.py
+│       ├── __main__.py       # CLI entry point
+│       ├── api/
+│       │   └── client.py     # OpenRouter API client
+│       ├── core/
+│       │   └── reviewer.py   # Core review logic
+│       └── models/
+│           └── criteria.py   # Data models
+├── tests/                    # Test files
+│   ├── test_models.py
+│   └── test_api_client.py
+├── config/
+│   └── pyproject.toml
+├── docs/
+│   ├── INSTRUCTIONS.md
+│   └── Exam_Description.txt
+└── reviews/                 # JSON review outputs
 ```
 
 ## Quick Start
@@ -38,17 +39,26 @@ CExams/
 
 2. **Run the exam reviewer:**
    ```bash
-   python scripts/exam_reviewer.py
+   python -m cexams
    ```
 
 3. **Check results:**
    Results will be saved in `reviews/` folder as JSON files.
 
-## Scripts Overview
+## CLI Options
 
-- `scripts/exam_reviewer.py` - Main AI-powered exam reviewer
-- `scripts/main.py` - Simple entry point
-- `scripts/test_*.py` - Various test scripts
+```bash
+python -m cexams [OPTIONS]
+
+Options:
+  --exams-dir TEXT       Directory containing exam files (default: Exams)
+  --criteria-file TEXT   Path to evaluation criteria JSON file (default: criteria/evaluation_improved.json)
+  --output-dir TEXT      Directory to save review results (default: reviews)
+  --test-mode            Run in test mode (single exam, single criteria)
+  --verbose, -v          Enable verbose logging
+  --model TEXT           AI model to use (default: deepseek/deepseek-chat)
+  --help                 Show this message and exit
+```
 
 ## Evaluation Criteria
 
@@ -65,22 +75,36 @@ Criteria are defined in `criteria/evaluation_improved.json` with 7 main categori
 
 - Python 3.12+
 - `requests` library
+- `urllib3` library
 
 Install with:
 ```bash
-pip install requests
+pip install -e ".[dev]"
 ```
 
-## Usage Example
+## Development
+
+### Running Tests
+```bash
+pytest
+```
+
+### Linting
+```bash
+ruff check src/
+```
+
+## Usage Examples
 
 ```bash
 # Test with limited scope
-export TEST_MODE=true
-python scripts/exam_reviewer.py
+python -m cexams --test-mode
 
-# Full review
-unset TEST_MODE
-python scripts/exam_reviewer.py
+# Full review with custom directories
+python -m cexams --exams-dir MyExams --output-dir MyReviews
+
+# Verbose output
+python -m cexams --verbose
 ```
 
 ## Output
@@ -93,7 +117,7 @@ JSON reviews are saved in `reviews/[exam_name]_review.json` with:
 
 ## Notes
 
-- API calls use OpenRouter DeepSeek model
+- API calls use OpenRouter DeepSeek model by default
 - Rate limiting: 1 second between API calls
 - Error handling continues processing other exams
 - Cost estimate: < $0.50 for 10 exams × 7 criteria
