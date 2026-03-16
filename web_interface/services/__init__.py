@@ -11,9 +11,9 @@ logger = logging.getLogger(__name__)
 
 
 class OpenRouterClient:
-    def __init__(self, api_key: str = None, model: str = DEFAULT_MODEL):
+    def __init__(self, api_key: str | None = None, model: str | None = None):
         self.api_key = api_key or OPENROUTER_API_KEY
-        self.model = model
+        self.model = model or DEFAULT_MODEL
         self.base_url = "https://openrouter.ai/api/v1/chat/completions"
 
         self.headers = {
@@ -181,6 +181,72 @@ OUTPUT FORMAT (JSON only):
             json.dump(review, f, indent=2, ensure_ascii=False)
 
         return review
+
+    def run_single_criteria_review(
+        self, exam_file: str, criteria_file: str, criteria_index: int = 0
+    ) -> Dict:
+        exam_content = self.load_exam(exam_file)
+        criteria_list = self.load_criteria(criteria_file)
+
+        if criteria_index >= len(criteria_list):
+            raise ValueError(f"Criteria index {criteria_index} out of range")
+
+        criteria = criteria_list[criteria_index]
+        prompt = self.create_prompt(exam_content, criteria)
+
+        try:
+            ai_response = self.api_client.call_api(prompt)
+            evaluation = self.api_client.parse_ai_response(ai_response)
+        except Exception as e:
+            logger.error(f"Evaluation failed for criteria {criteria_index}: {e}")
+            evaluation = {
+                "criteria_title": criteria.get("titulo", ""),
+                "criteria_description": criteria.get("descripcion", ""),
+                "maximum_score": criteria.get("nota_maxima", 0),
+                "awarded_score": 0,
+                "justification": f"Error: {str(e)}",
+                "subsection_evaluations": [],
+            }
+
+        evaluation["criteria_index"] = criteria_index + 1
+
+        review_file = os.path.join(
+            self.reviews_dir, f"{os.path.splitext(exam_file)[0]}_review.json"
+        )
+
+        if os.path.exists(review_file):
+            with open(review_file, "r", encoding="utf-8") as f:
+                review_data = json.load(f)
+        else:
+            review_data = {
+                "exam_name": os.path.splitext(exam_file)[0],
+                "exam_file": exam_file,
+                "total_criteria": len(criteria_list),
+                "criteria_evaluations": [],
+                "overall_score": 0.0,
+                "maximum_possible_score": 0.0,
+            }
+
+        found = False
+        for i, eval_item in enumerate(review_data["criteria_evaluations"]):
+            if eval_item.get("criteria_index") == criteria_index + 1:
+                review_data["criteria_evaluations"][i] = evaluation
+                found = True
+                break
+
+        if not found:
+            review_data["criteria_evaluations"].append(evaluation)
+
+        overall_score = sum(e.get("awarded_score", 0) for e in review_data["criteria_evaluations"])
+        max_score = sum(c.get("nota_maxima", 0) for c in criteria_list)
+
+        review_data["overall_score"] = overall_score
+        review_data["maximum_possible_score"] = max_score
+
+        with open(review_file, "w", encoding="utf-8") as f:
+            json.dump(review_data, f, indent=2, ensure_ascii=False)
+
+        return review_data
 
     def run_all_reviews(self, criteria_file: str) -> int:
         exam_files = [f for f in os.listdir(self.exams_dir) if f.endswith(".c")]

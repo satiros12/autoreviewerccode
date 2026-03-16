@@ -100,6 +100,10 @@
     .close-btn:hover {
         background: #c0392b;
     }
+    .thread-input {
+        width: 80px !important;
+        display: inline-block !important;
+    }
 </style>
 {% endblock %}
 
@@ -129,8 +133,8 @@
                 </select>
             </div>
             <div class="form-group">
-                <label>Criteria (all criteria from file will be used):</label>
-                <select name="criteria" id="single-criteria" required>
+                <label>Criteria File:</label>
+                <select name="criteria" id="single-criteria-file" required>
                     <option value="">-- Select Criteria File --</option>
                     {% for criteria in criteria_files %}
                     <option value="{{ criteria }}" {% if selected_criteria == criteria %}selected{% endif %}>{{ criteria }}</option>
@@ -142,21 +146,63 @@
     </div>
 
     <div class="card">
-        <h3>Batch Review</h3>
-        <p>Run evaluation for all exams with selected criteria</p>
-        <form method="post" id="batch-form">
-            <div class="form-group">
-                <label>Criteria (all criteria from file will be used):</label>
-                <select name="criteria_batch" id="batch-criteria" required>
-                    <option value="">-- Select Criteria File --</option>
-                    {% for criteria in criteria_files %}
-                    <option value="{{ criteria }}" {% if selected_criteria == criteria %}selected{% endif %}>{{ criteria }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <button type="button" name="run_all" class="btn btn-success" onclick="runBatchReview()">Run All Exams</button>
-        </form>
-        <p style="margin-top: 1rem; color: #666;">Available exams: {{ exam_files|length }}</p>
+        <h3>Batch Review (Sequential)</h3>
+        <p>Run evaluation for all exams sequentially</p>
+        <div class="form-group">
+            <label>Criteria File:</label>
+            <select name="criteria_batch" id="batch-criteria" required>
+                <option value="">-- Select Criteria File --</option>
+                {% for criteria in criteria_files %}
+                <option value="{{ criteria }}" {% if selected_criteria == criteria %}selected{% endif %}>{{ criteria }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="button" name="run_all" class="btn btn-success" onclick="runBatchReview()">Run All Exams (Sequential)</button>
+        <p style="margin-top: 0.5rem; color: #666;">Available exams: {{ exam_files|length }}</p>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+    <div class="card">
+        <h3>Parallel Review (All Criteria)</h3>
+        <p>Run all exams in parallel with multiple threads</p>
+        <div class="form-group">
+            <label>Criteria File:</label>
+            <select id="parallel-criteria" required>
+                <option value="">-- Select Criteria File --</option>
+                {% for criteria in criteria_files %}
+                <option value="{{ criteria }}">{{ criteria }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Number of Threads:</label>
+            <input type="number" id="parallel-threads" value="2" min="1" max="10" class="thread-input">
+        </div>
+        <button type="button" class="btn btn-success" onclick="runParallelReview()">Run Parallel (All Criteria)</button>
+    </div>
+
+    <div class="card">
+        <h3>Parallel Review (Single Criteria)</h3>
+        <p>Run all exams for a specific criteria in parallel</p>
+        <div class="form-group">
+            <label>Criteria File:</label>
+            <select id="parallel-single-criteria-file" required>
+                <option value="">-- Select Criteria File --</option>
+                {% for criteria in criteria_files %}
+                <option value="{{ criteria }}">{{ criteria }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Criteria Index (0-based):</label>
+            <input type="number" id="parallel-single-criteria-index" value="0" min="0" class="thread-input">
+        </div>
+        <div class="form-group">
+            <label>Number of Threads:</label>
+            <input type="number" id="parallel-single-threads" value="2" min="1" max="10" class="thread-input">
+        </div>
+        <button type="button" class="btn btn-success" onclick="runParallelSingleCriteria()">Run Parallel (Single Criteria)</button>
     </div>
 </div>
 
@@ -241,7 +287,7 @@ function cancelReview() {
 
 function runSingleReview() {
     const exam = document.getElementById('single-exam').value;
-    const criteria = document.getElementById('single-criteria').value;
+    const criteria = document.getElementById('single-criteria-file').value;
     
     if (!exam || !criteria) {
         alert('Please select both exam and criteria');
@@ -297,87 +343,171 @@ function runBatchReview() {
     isRunning = true;
     reviewCancelled = false;
     
-    const examCount = {{ exam_files|length }};
-    let currentExam = 0;
-    
-    addLog(`Starting batch review for ${examCount} exams`, 'info');
-    addLog(`Using criteria file: ${criteria}`, 'info');
-    
-    function processNextExam(examFiles, criteriaTotal) {
-        if (reviewCancelled) {
-            addLog('Batch review cancelled', 'warning');
+    fetch('/api/files/exams')
+    .then(response => response.json())
+    .then(data => {
+        const examFiles = data.exams;
+        
+        if (examFiles.length === 0) {
+            alert('No exams found');
+            hideLoading();
             return;
         }
         
-        if (currentExam >= examFiles.length) {
-            addLog(`Batch review completed! Processed ${currentExam} exams.`, 'success');
+        const examCount = examFiles.length;
+        addLog(`Starting batch review for ${examCount} exams`, 'info');
+        addLog(`Using criteria file: ${criteria}`, 'info');
+        
+        fetch(`/api/criteria/${criteria}`)
+        .then(r => r.json())
+        .then(critData => {
+            const criteriaCount = critData.total_criteria || 1;
+            let currentExam = 0;
+            
+            showLoading('Loading...', criteria, 1, examCount);
+            
+            function processNextExam() {
+                if (reviewCancelled) {
+                    addLog('Batch review cancelled', 'warning');
+                    return;
+                }
+                
+                if (currentExam >= examFiles.length) {
+                    addLog(`Batch review completed! Processed ${currentExam} exams.`, 'success');
+                    hideLoading();
+                    setTimeout(() => {
+                        window.location.href = '/reviews';
+                    }, 1500);
+                    return;
+                }
+                
+                const exam = examFiles[currentExam];
+                addLog(`Processing exam ${currentExam + 1}/${examCount}: ${exam}`, 'info');
+                
+                fetch('/api/run/single', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({exam_file: exam, criteria_file: criteria})
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (reviewCancelled) return;
+                    
+                    if (data.success) {
+                        addLog(`Completed: ${exam} - Score: ${data.result.overall_score}/${data.result.maximum_possible_score}`, 'success');
+                    } else {
+                        addLog(`Error processing ${exam}: ${data.error}`, 'error');
+                    }
+                    
+                    currentExam++;
+                    updateProgress(exam, criteriaCount, currentExam + 1, examCount, criteriaCount);
+                    processNextExam();
+                })
+                .catch(err => {
+                    if (reviewCancelled) return;
+                    addLog(`Error: ${err}`, 'error');
+                    currentExam++;
+                    processNextExam();
+                });
+            }
+            
+            processNextExam();
+        });
+    });
+}
+
+function runParallelReview() {
+    const criteria = document.getElementById('parallel-criteria').value;
+    const threads = parseInt(document.getElementById('parallel-threads').value) || 2;
+    
+    if (!criteria) {
+        alert('Please select criteria');
+        return;
+    }
+    
+    if (isRunning) return;
+    isRunning = true;
+    reviewCancelled = false;
+    
+    showLoading('Loading...', criteria, 0, 100);
+    addLog(`Starting parallel review with ${threads} threads`, 'info');
+    addLog(`Using criteria file: ${criteria}`, 'info');
+    
+    fetch('/api/run/parallel', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({criteria_file: criteria, max_workers: threads})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (reviewCancelled) return;
+        
+        if (data.success) {
+            addLog(`Parallel review completed!`, 'success');
+            addLog(`Processed: ${data.success_count} exams, Errors: ${data.error_count}`, 'success');
             hideLoading();
             setTimeout(() => {
                 window.location.href = '/reviews';
             }, 1500);
-            return;
+        } else {
+            addLog(`Error: ${data.error}`, 'error');
+            hideLoading();
+            alert('Error: ' + data.error);
         }
-        
-        const exam = examFiles[currentExam];
-        addLog(`Processing exam ${currentExam + 1}/${examCount}: ${exam}`, 'info');
-        updateProgress(exam, '1', currentExam + 1, examCount, criteriaTotal);
-        
-        fetch('/api/run/single', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({exam_file: exam, criteria_file: criteria})
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (reviewCancelled) return;
-            
-            if (data.success) {
-                addLog(`Completed: ${exam} - Score: ${data.result.overall_score}/${data.result.maximum_possible_score}`, 'success');
-            } else {
-                addLog(`Error processing ${exam}: ${data.error}`, 'error');
-            }
-            
-            currentExam++;
-            processNextExam(examFiles, criteriaTotal);
-        })
-        .catch(err => {
-            if (reviewCancelled) return;
-            addLog(`Error: ${err}`, 'error');
-            currentExam++;
-            processNextExam(examFiles, criteriaTotal);
-        });
+    })
+    .catch(err => {
+        addLog(`Error: ${err}`, 'error');
+        hideLoading();
+    });
+}
+
+function runParallelSingleCriteria() {
+    const criteria = document.getElementById('parallel-single-criteria-file').value;
+    const criteriaIndex = parseInt(document.getElementById('parallel-single-criteria-index').value) || 0;
+    const threads = parseInt(document.getElementById('parallel-single-threads').value) || 2;
+    
+    if (!criteria) {
+        alert('Please select criteria');
+        return;
     }
     
-    showLoading('Loading...', criteria, 1, examCount);
+    if (isRunning) return;
+    isRunning = true;
+    reviewCancelled = false;
     
-    fetch('/exams')
-    .then(response => response.text())
-    .then(html => {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-        const examOptions = doc.querySelectorAll('#single-exam option');
-        const examFiles = [];
-        examOptions.forEach(opt => {
-            if (opt.value) examFiles.push(opt.value);
-        });
+    showLoading('Loading...', criteria, 0, 100);
+    addLog(`Starting parallel review for criteria ${criteriaIndex} with ${threads} threads`, 'info');
+    addLog(`Using criteria file: ${criteria}`, 'info');
+    
+    fetch('/api/run/parallel-criteria', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            criteria_file: criteria,
+            criteria_index: criteriaIndex,
+            max_workers: threads
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (reviewCancelled) return;
         
-        if (examFiles.length === 0) {
-            addLog('No exams found', 'error');
+        if (data.success) {
+            addLog(`Parallel review completed!`, 'success');
+            addLog(`Processed: ${data.success_count} exams, Errors: ${data.error_count}`, 'success');
             hideLoading();
-            return;
+            setTimeout(() => {
+                window.location.href = '/reviews';
+            }, 1500);
+        } else {
+            addLog(`Error: ${data.error}`, 'error');
+            hideLoading();
+            alert('Error: ' + data.error);
         }
-        
-        addLog(`Found ${examFiles.length} exams to process`, 'info');
-        
-        fetch('/criteria')
-        .then(response => response.text())
-        .then(criteriaHtml => {
-            const criteriaDoc = parser.parseFromString(criteriaHtml, 'text/html');
-            const criteriaOptions = criteriaDoc.querySelectorAll('#single-criteria option');
-            const criteriaTotal = criteriaOptions.length;
-            
-            processNextExam(examFiles, criteriaTotal);
-        });
+    })
+    .catch(err => {
+        addLog(`Error: ${err}`, 'error');
+        hideLoading();
     });
 }
 
