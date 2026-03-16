@@ -6,6 +6,8 @@ import json
 import logging
 from typing import Dict, Any
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 logger = logging.getLogger(__name__)
 
@@ -13,17 +15,27 @@ logger = logging.getLogger(__name__)
 class OpenRouterClient:
     """Client for OpenRouter AI API"""
 
-    def __init__(self, api_key: str, model: str = "deepseek/deepseek-chat"):
+    def __init__(
+        self,
+        api_key: str,
+        model: str = "deepseek/deepseek-chat",
+        max_retries: int = 3,
+        backoff_factor: float = 1.0,
+    ):
         """
         Initialize OpenRouter client
 
         Args:
             api_key: OpenRouter API key
             model: AI model to use
+            max_retries: Maximum number of retry attempts
+            backoff_factor: Backoff factor for exponential retry
         """
         self.api_key = api_key
         self.model = model
         self.base_url = "https://openrouter.ai/api/v1/chat/completions"
+        self.max_retries = max_retries
+        self.backoff_factor = backoff_factor
 
         self.headers = {
             "Authorization": f"Bearer {api_key}",
@@ -31,6 +43,22 @@ class OpenRouterClient:
             "HTTP-Referer": "https://cexams.local",
             "X-Title": "CExams AI Reviewer",
         }
+
+        self.session = self._create_session()
+
+    def _create_session(self) -> requests.Session:
+        """Create a requests session with retry logic"""
+        session = requests.Session()
+        retry_strategy = Retry(
+            total=self.max_retries,
+            backoff_factor=self.backoff_factor,
+            status_forcelist=[429, 500, 502, 503, 504],
+            allowed_methods=["POST"],
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        session.mount("https://", adapter)
+        session.mount("http://", adapter)
+        return session
 
     def call_api(self, prompt: str, system_prompt: str = "") -> str:
         """
@@ -58,7 +86,7 @@ class OpenRouterClient:
 
         try:
             logger.info("Calling OpenRouter AI API...")
-            response = requests.post(
+            response = self.session.post(
                 self.base_url, headers=self.headers, json=data, timeout=60
             )
             response.raise_for_status()

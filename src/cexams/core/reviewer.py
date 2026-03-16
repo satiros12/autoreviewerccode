@@ -139,14 +139,15 @@ IMPORTANT: Return ONLY valid JSON, no other text."""
 class ExamReviewer:
     """Main exam reviewer class"""
 
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, model: str = "deepseek/deepseek-chat"):
         """
         Initialize ExamReviewer
 
         Args:
             api_key: OpenRouter API key
+            model: AI model to use for evaluation
         """
-        self.api_client = OpenRouterClient(api_key)
+        self.api_client = OpenRouterClient(api_key, model=model)
         self.criteria_loader = CriteriaLoader()
         self.prompt_generator = PromptGenerator()
 

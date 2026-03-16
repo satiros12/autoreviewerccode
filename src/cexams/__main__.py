@@ -5,18 +5,19 @@ Main entry point for CExams package
 import os
 import sys
 import logging
+import argparse
 from pathlib import Path
-
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from .core.reviewer import ExamReviewer, CriteriaLoader
 
 
-def configure_logging():
+def configure_logging(verbose: bool = False):
     """Configure logging settings"""
+    level = logging.DEBUG if verbose else logging.INFO
     logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+        level=level,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
 
 
@@ -32,47 +33,96 @@ def get_api_key():
     return api_key
 
 
+def parse_args():
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser(
+        prog="cexams",
+        description="CExams - AI-powered C programming exam evaluation system",
+    )
+    parser.add_argument(
+        "--exams-dir",
+        type=str,
+        default="Exams",
+        help="Directory containing exam files (default: Exams)",
+    )
+    parser.add_argument(
+        "--criteria-file",
+        type=str,
+        default="criteria/evaluation_improved.json",
+        help="Path to evaluation criteria JSON file",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        default="reviews",
+        help="Directory to save review results (default: reviews)",
+    )
+    parser.add_argument(
+        "--test-mode",
+        action="store_true",
+        help="Run in test mode (single exam, single criteria)",
+    )
+    parser.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        help="Enable verbose logging",
+    )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default="deepseek/deepseek-chat",
+        help="AI model to use for evaluation",
+    )
+    return parser.parse_args()
+
+
 def main():
     """Main function"""
+    args = parse_args()
+
     print("CExams AI Reviewer")
     print("=" * 50)
-
-    # Configuration
-    EXAMS_DIR = "Exams"
-    CRITERIA_FILE = "criteria/evaluation_improved.json"
-    OUTPUT_DIR = "reviews"
 
     try:
         # Get API key
         api_key = get_api_key()
 
+        # Configure logging
+        configure_logging(args.verbose)
+
         # Initialize components
-        configure_logging()
-        reviewer = ExamReviewer(api_key)
+        reviewer = ExamReviewer(api_key, model=args.model)
         criteria_loader = CriteriaLoader()
 
         # Load criteria
-        print(f"Loading criteria from {CRITERIA_FILE}...")
-        criteria_list = criteria_loader.load_criteria(CRITERIA_FILE)
+        print(f"Loading criteria from {args.criteria_file}...")
+        criteria_list = criteria_loader.load_criteria(args.criteria_file)
 
         # Check for test mode
-        TEST_MODE = os.environ.get("TEST_MODE") == "true"
-        if TEST_MODE:
+        if args.test_mode:
             criteria_list = criteria_list[:1]
             print(f"TEST MODE: Using only first criteria")
 
         # Get exam files
-        print(f"Scanning exam files in {EXAMS_DIR}...")
-        exam_files = []
-        for file in os.listdir(EXAMS_DIR):
-            if file.endswith(".c"):
-                exam_files.append(os.path.join(EXAMS_DIR, file))
-
-        if not exam_files:
-            print(f"No exam files found in {EXAMS_DIR}")
+        print(f"Scanning exam files in {args.exams_dir}...")
+        if not os.path.isdir(args.exams_dir):
+            print(f"ERROR: Exams directory not found: {args.exams_dir}")
             return
 
-        if TEST_MODE:
+        exam_files = sorted(
+            [
+                os.path.join(args.exams_dir, f)
+                for f in os.listdir(args.exams_dir)
+                if f.endswith(".c")
+            ]
+        )
+
+        if not exam_files:
+            print(f"No exam files found in {args.exams_dir}")
+            return
+
+        if args.test_mode:
             exam_files = exam_files[:1]
             print(f"TEST MODE: Using only first exam")
 
@@ -89,7 +139,7 @@ def main():
                 review = reviewer.review_exam(exam_file, criteria_list)
 
                 # Save results
-                output_path = reviewer.save_review(review, OUTPUT_DIR)
+                output_path = reviewer.save_review(review, args.output_dir)
 
                 # Print summary
                 print(f"✓ Review completed: {review.exam_name}")
@@ -103,12 +153,12 @@ def main():
                 continue
 
         print(f"\n{'=' * 50}")
-        if TEST_MODE:
+        if args.test_mode:
             print("TEST COMPLETE! Script is working correctly.")
-            print("To run full review, remove TEST_MODE environment variable")
+            print("To run full review, remove --test-mode flag")
         else:
             print("All exams reviewed successfully!")
-        print(f"Results saved in: {OUTPUT_DIR}")
+        print(f"Results saved in: {args.output_dir}")
 
     except ValueError as e:
         print(f"\nERROR: {e}")
