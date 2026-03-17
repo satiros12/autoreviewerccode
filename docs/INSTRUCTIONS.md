@@ -167,11 +167,11 @@ Scanning exam files in Exams...
 Found 10 exam files to review
 
 ==================================================
-Reviewing exam 1/10: Assignment 1 Exam_reyn.moreno_intento_2026-03-05-10-28-22_examq2.c
+Reviewing exam 1/10: student_exam_1.c
 ==================================================
-✓ Review completed: Assignment 1 Exam_reyn.moreno_intento_2026-03-05-10-28-22_examq2
+✓ Review completed: student_exam_1
   Score: 6.50/10.00
-  Results saved to: JSON_REVIEWS/Assignment 1 Exam_reyn.moreno_intento_2026-03-05-10-28-22_examq2_review.json
+  Results saved to: JSON_REVIEWS/student_exam_1_review.json
 
 [... continues with other exams ...]
 

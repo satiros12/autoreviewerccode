@@ -13,7 +13,7 @@ for directory in [EXAMS_DIR, ANNOTATED_EXAMS_DIR, CRITERIA_DIR, CRITERIA_DB_DIR,
 
 ALLOWED_EXTENSIONS = {"c", "json"}
 
-SECRET_KEY = "cexams-secret-key-change-in-production"
+SECRET_KEY = os.environ.get("SECRET_KEY", "cexams-secret-key-change-in-production")
 
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 DEFAULT_MODEL = "deepseek/deepseek-chat"
