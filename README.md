@@ -1,86 +1,136 @@
 # CExams - C Programming Exam Evaluation System
 
+AI-powered C programming exam evaluation system with both CLI and web interface.
+
 ## Project Structure
 
 ```
 CExams/
-├── Exams/                    # Exam files (.c files)
-├── criteria/                 # Evaluation criteria and rubrics
-│   ├── evaluation_improved.json
-│   ├── OLD/                  # Deprecated criteria files
-│   └── OLD_IP1/              # Old IP1 rubrics
-├── src/                      # Source code package
+├── Exams/                       # Original exam files (.c files)
+├── criteria/                    # Evaluation criteria JSON files
+│   └── evaluation_improved.json
+├── src/                         # CLI source code
 │   └── cexams/
-│       ├── __init__.py
-│       ├── __main__.py       # CLI entry point
-│       ├── api/
-│       │   └── client.py     # OpenRouter API client
-│       ├── core/
-│       │   └── reviewer.py   # Core review logic
-│       └── models/
-│           └── criteria.py   # Data models
-├── tests/                    # Test files
-│   ├── test_models.py
-│   └── test_api_client.py
-├── config/
-│   └── pyproject.toml
-├── docs/
-│   ├── INSTRUCTIONS.md
-│   └── Exam_Description.txt
-└── reviews/                 # JSON review outputs
+├── web_interface/               # Web application
+│   ├── app.py                   # Flask application
+│   ├── config.py                # Configuration
+│   ├── routes/                  # API routes
+│   ├── services/                # Business logic
+│   ├── templates/               # HTML templates
+│   ├── exams/                   # Uploaded exam files
+│   ├── criteria_db/             # Individual criteria storage
+│   ├── annotated_exams/         # Annotated exam files
+│   └── reviews/                 # Review results
+├── tests/                       # Test files
+└── docs/                        # Documentation
 ```
 
-## Quick Start
+## Installation
 
-1. **Set up API key:**
-   ```bash
-   export OPENROUTER_API_KEY="your-api-key-here"
-   ```
+```bash
+pip install -e ".[dev]"
+```
 
-2. **Run the exam reviewer:**
-   ```bash
-   python -m cexams
-   ```
+## Configuration
 
-3. **Check results:**
-   Results will be saved in `reviews/` folder as JSON files.
+Set the OpenRouter API key:
 
-## CLI Options
+```bash
+export OPENROUTER_API_KEY="your-api-key-here"
+```
+
+## CLI Usage
 
 ```bash
 python -m cexams [OPTIONS]
 
 Options:
-  --exams-dir TEXT       Directory containing exam files (default: Exams)
-  --criteria-file TEXT   Path to evaluation criteria JSON file (default: criteria/evaluation_improved.json)
-  --output-dir TEXT      Directory to save review results (default: reviews)
-  --test-mode            Run in test mode (single exam, single criteria)
-  --verbose, -v          Enable verbose logging
-  --model TEXT           AI model to use (default: deepseek/deepseek-chat)
-  --help                 Show this message and exit
+  --exams-dir TEXT       Directory containing exam files
+  --criteria-file TEXT  Path to evaluation criteria JSON file
+  --output-dir TEXT     Directory to save review results
+  --test-mode           Run in test mode (single exam, single criteria)
+  --verbose, -v         Enable verbose logging
+  --model TEXT          AI model to use (default: deepseek/deepseek-chat)
+  --help                Show this message and exit
 ```
+
+## Web Interface
+
+Start the web server:
+
+```bash
+cd web_interface
+python app.py
+```
+
+The web interface will be available at `http://localhost:5000`
+
+### Features
+
+- **Upload Exams**: Upload .c exam files for evaluation
+- **Upload Criteria**: Upload evaluation criteria (single object or array of criteria)
+- **Run Evaluation**: Execute automatic exam evaluation with configurable options:
+  - Select specific exam or all exams
+  - Select specific criteria, all criteria, or "Only Annotate" mode
+  - Configure number of threads for parallel processing
+  - Option to generate reviewer annotations with `//REVIEWER:` comments
+- **Interactive Reviewer**: Manually review and edit evaluations:
+  - View exam code with syntax highlighting
+  - Navigate between exams and criteria
+  - Edit scores and justifications
+  - Toggle between original and annotated code
+- **Download Results**: Download reviews as JSON or text format
+
+### Web Interface Routes
+
+| Route | Description |
+|-------|-------------|
+| `/` | Home page with upload forms |
+| `/run` | Run evaluation page |
+| `/reviewer` | Interactive reviewer |
+| `/reviews` | View all review results |
+| `/exams` | Manage exam files |
+| `/criteria` | Manage evaluation criteria |
+
+### API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/files/exams` | GET | List all exam files |
+| `/api/files/criteria` | GET | List all criteria files |
+| `/api/criteria/list` | GET | List all criteria with details |
+| `/api/run/single` | POST | Run single exam review |
+| `/api/run/parallel` | POST | Run parallel review |
+| `/api/annotate` | POST | Generate annotations for exam |
+| `/api/annotated-exam/<filename>` | GET | Get annotated exam |
+| `/api/reviewer/data` | GET | Get reviewer data |
+| `/api/reviewer/save-evaluation` | POST | Save evaluation |
 
 ## Evaluation Criteria
 
-Criteria are defined in `criteria/evaluation_improved.json` with 7 main categories:
-1. Code structure and formatting
-2. Structure declaration and usage
-3. Enum and typedef usage
-4. Command line arguments (argc/argv)
-5. Function implementation
-6. Additional functions
-7. Compilation and execution
+Criteria are stored as individual JSON files in `criteria_db/`. Each criteria contains:
 
-## Dependencies
+- `titulo`: Criteria title
+- `descripcion`: Description
+- `nota_maxima`: Maximum score
+- `subapartados`: Array of subsections with:
+  - `nombre`: Subsection name
+  - `descripcion`: Description
+  - `puntos`: Point value
+  - `penalizacion_min`: Minimum penalty
+  - `anulador`: Whether it's a nullifier
 
-- Python 3.12+
-- `requests` library
-- `urllib3` library
+## Annotation Feature
 
-Install with:
-```bash
-pip install -e ".[dev]"
-```
+When enabled, the system generates annotated versions of exams with `//REVIEWER:` comments indicating:
+- Syntax errors
+- Logic errors
+- Bugs
+- Style issues
+- Missing error handling
+- Memory issues
+
+Annotated files are stored in `annotated_exams/` directory with `_annotated.c` suffix.
 
 ## Development
 
@@ -92,32 +142,32 @@ pytest
 ### Linting
 ```bash
 ruff check src/
-```
-
-## Usage Examples
-
-```bash
-# Test with limited scope
-python -m cexams --test-mode
-
-# Full review with custom directories
-python -m cexams --exams-dir MyExams --output-dir MyReviews
-
-# Verbose output
-python -m cexams --verbose
+ruff check web_interface/
 ```
 
 ## Output
 
-JSON reviews are saved in `reviews/[exam_name]_review.json` with:
-- Exam metadata
-- Criteria evaluations
-- Scores and justifications
-- Subsection analyses
+JSON reviews are saved with structure:
+```json
+{
+  "exam_name": "exam_filename",
+  "exam_file": "exam_filename.c",
+  "total_criteria": 7,
+  "criteria_evaluations": [...],
+  "overall_score": 85.0,
+  "maximum_possible_score": 100.0
+}
+```
+
+Each criteria evaluation contains:
+- Criteria title and description
+- Awarded score
+- Justification
+- Subsection evaluations
 
 ## Notes
 
 - API calls use OpenRouter DeepSeek model by default
-- Rate limiting: 1 second between API calls
+- Rate limiting is applied between API calls
 - Error handling continues processing other exams
-- Cost estimate: < $0.50 for 10 exams × 7 criteria
+- The web interface stores data in separate directories from the CLI
