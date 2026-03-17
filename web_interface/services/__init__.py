@@ -231,3 +231,51 @@ OUTPUT FORMAT (JSON only):
                     logger.error(f"Failed to review {exam_file} with {criteria_file}: {e}")
 
         return count
+
+    def generate_annotation(self, exam_file: str, annotated_exams_dir: str) -> str:  # noqa: E501
+        exam_content = self.load_exam(exam_file)
+
+        prompt = (
+            "You are a C programming teacher reviewing a student's exam submission.\n"
+            "Analyze the code and add comments starting with //REVIEWER: to indicate errors, bugs, problems, or mistakes.\n"
+            "\n"
+            "IMPORTANT:\n"
+            "- Only add comments, do NOT modify the code itself\n"
+            "- Add comments on the SAME LINE after the code, or on the line before if at the start of a block\n"
+            "- Use exactly //REVIEWER: as the prefix for your comments\n"
+            "- Focus on: syntax errors, logic errors, bugs, style issues, missing error handling, memory issues\n"
+            "- If no issues found, add a single comment //REVIEWER: Code looks good, no issues found\n"
+            "\n"
+            "Original code:\n"
+            "```c\n" + exam_content + "\n```\n"
+            "\n"
+            "Return ONLY the annotated C code with your //REVIEWER: comments, no other text."
+        )
+
+        try:
+            ai_response = self.api_client.call_api(prompt)
+            annotated_content = self._clean_annotation_response(ai_response)
+        except Exception as e:
+            logger.error(f"Annotation failed for {exam_file}: {e}")
+            annotated_content = f"//REVIEWER: Error generating annotation: {str(e)}\n{exam_content}"
+
+        base_name = os.path.splitext(exam_file)[0]
+        annotated_filename = f"{base_name}_annotated.c"
+        annotated_path = os.path.join(annotated_exams_dir, annotated_filename)
+
+        with open(annotated_path, "w", encoding="utf-8") as f:
+            f.write(annotated_content)
+
+        return annotated_filename
+
+    def _clean_annotation_response(self, response: str) -> str:
+        cleaned = response.strip()
+        if cleaned.startswith("```c"):
+            cleaned = cleaned[4:]
+        elif cleaned.startswith("```"):
+            cleaned = cleaned[3:]
+        if cleaned.startswith("```c"):
+            cleaned = cleaned[4:]
+        if cleaned.endswith("```"):
+            cleaned = cleaned[:-3]
+        return cleaned.strip()

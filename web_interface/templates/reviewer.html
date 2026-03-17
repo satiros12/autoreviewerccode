@@ -100,7 +100,11 @@
             <div class="code-panel">
                 <div class="code-header">
                     <span>Exam Code</span>
-                    <span style="color: #666; font-size: 0.85rem;">C</span>
+                    <span>
+                        <label style="display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.8rem; color: #666;">
+                            <input type="checkbox" id="show-annotated" onchange="toggleAnnotated()" disabled> Show Annotated
+                        </label>
+                    </span>
                 </div>
                 <pre><code class="language-c" id="exam-code">Loading...</code></pre>
             </div>
@@ -151,6 +155,8 @@
 let currentData = null;
 let currentCriteriaFile = null;
 let allCriteriaFiles = [];
+let currentExamFile = null;
+let annotatedContent = null;
 
 function highlightCode() {
     const codeElement = document.getElementById('exam-code');
@@ -166,6 +172,58 @@ function loadAllCriteria() {
         .then(data => {
             allCriteriaFiles = data.criteria || [];
             return allCriteriaFiles;
+        });
+}
+
+function toggleAnnotated() {
+    const showAnnotated = document.getElementById('show-annotated').checked;
+    const codeElement = document.getElementById('exam-code');
+    
+    if (showAnnotated && annotatedContent) {
+        codeElement.textContent = annotatedContent;
+    } else if (currentData) {
+        codeElement.textContent = currentData.exam_content;
+    }
+    
+    codeElement.className = 'language-c';
+    codeElement.removeAttribute('data-highlighted');
+    setTimeout(() => hljs.highlightElement(codeElement), 0);
+}
+
+function loadAnnotatedExam(examFile) {
+    const baseName = examFile.endsWith('.c') ? examFile.slice(0, -2) : examFile;
+    const annotatedFile = baseName + '_annotated.c';
+    const encodedFile = encodeURIComponent(annotatedFile);
+    
+    console.log('Looking for annotated file:', annotatedFile);
+    console.log('Encoded:', encodedFile);
+    
+    return fetch(`/api/annotated-exam/${encodedFile}`)
+        .then(response => {
+            console.log('Response status:', response.status);
+            if (response.ok) {
+                return response.json();
+            }
+            return null;
+        })
+        .then(data => {
+            console.log('Annotation data:', data);
+            if (data && data.content) {
+                annotatedContent = data.content;
+                document.getElementById('show-annotated').disabled = false;
+                console.log('Annotated content loaded, checkbox enabled');
+            } else {
+                annotatedContent = null;
+                document.getElementById('show-annotated').checked = false;
+                document.getElementById('show-annotated').disabled = true;
+                console.log('No annotation found, checkbox disabled');
+            }
+        })
+        .catch(err => {
+            console.error('Error loading annotation:', err);
+            annotatedContent = null;
+            document.getElementById('show-annotated').checked = false;
+            document.getElementById('show-annotated').disabled = true;
         });
 }
 
@@ -190,7 +248,11 @@ function loadReviewerData() {
                 return;
             }
             currentData = data;
-            renderData();
+            currentExamFile = data.exam_file;
+            
+            loadAnnotatedExam(currentExamFile).then(() => {
+                renderData();
+            });
         })
         .catch(err => {
             console.error('Error loading data:', err);
@@ -201,8 +263,15 @@ function loadReviewerData() {
 function renderData() {
     if (!currentData) return;
     
+    const showAnnotated = document.getElementById('show-annotated').checked;
     const codeElement = document.getElementById('exam-code');
-    codeElement.textContent = currentData.exam_content;
+    
+    if (showAnnotated && annotatedContent) {
+        codeElement.textContent = annotatedContent;
+    } else {
+        codeElement.textContent = currentData.exam_content;
+    }
+    
     codeElement.className = 'language-c';
     codeElement.removeAttribute('data-highlighted');
     

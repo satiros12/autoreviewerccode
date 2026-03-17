@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from flask import Blueprint, jsonify, request
 from services import ExamEvaluator
 
-from config import CRITERIA_DB_DIR, EXAMS_DIR, REVIEWS_DIR
+from config import ANNOTATED_EXAMS_DIR, CRITERIA_DB_DIR, EXAMS_DIR, REVIEWS_DIR
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 
@@ -320,3 +320,64 @@ def save_evaluation():
         json.dump(review_data, f, indent=2, ensure_ascii=False)
 
     return jsonify({"success": True, "message": "Evaluation saved"})
+
+
+@api_bp.route("/annotate", methods=["POST"])
+def annotate_exam():
+    data = request.json
+    exam_file = data.get("exam_file")
+
+    if not exam_file:
+        return jsonify({"success": False, "error": "No exam file provided"})
+
+    try:
+        evaluator = ExamEvaluator(CRITERIA_DB_DIR, EXAMS_DIR, REVIEWS_DIR)
+        annotated_filename = evaluator.generate_annotation(exam_file, ANNOTATED_EXAMS_DIR)
+        return jsonify({"success": True, "annotated_file": annotated_filename})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@api_bp.route("/files/annotated-exams")
+def get_annotated_exams():
+    annotated_files = sorted([f for f in os.listdir(ANNOTATED_EXAMS_DIR) if f.endswith(".c")])
+    return jsonify({"annotated_exams": annotated_files})
+
+
+@api_bp.route("/annotated-exam/<filename>")
+def get_annotated_exam(filename):
+    filepath = os.path.join(ANNOTATED_EXAMS_DIR, filename)
+    if os.path.exists(filepath):
+        with open(filepath, "r", encoding="utf-8") as f:
+            content = f.read()
+        return jsonify({"filename": filename, "content": content})
+
+    return jsonify({"error": "Annotated exam not found"}), 404
+
+
+@api_bp.route("/annotated-exam/<filename>", methods=["DELETE"])
+def delete_annotated_exam(filename):
+    filepath = os.path.join(ANNOTATED_EXAMS_DIR, filename)
+    if os.path.exists(filepath):
+        os.remove(filepath)
+        return jsonify({"success": True})
+    return jsonify({"error": "File not found"}), 404
+
+
+@api_bp.route("/annotated-exam/delete-by-exam", methods=["POST"])
+def delete_annotated_exam_by_exam():
+    data = request.json
+    exam_file = data.get("exam_file")
+
+    if not exam_file:
+        return jsonify({"success": False, "error": "No exam file provided"})
+
+    base_name = os.path.splitext(exam_file)[0]
+    annotated_filename = f"{base_name}_annotated.c"
+    filepath = os.path.join(ANNOTATED_EXAMS_DIR, annotated_filename)
+
+    if os.path.exists(filepath):
+        os.remove(filepath)
+        return jsonify({"success": True, "deleted": annotated_filename})
+
+    return jsonify({"success": True, "deleted": None})

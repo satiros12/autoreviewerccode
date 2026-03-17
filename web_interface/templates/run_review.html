@@ -119,79 +119,39 @@
 </div>
 {% endif %}
 
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-    <div class="card">
-        <h3>Single Exam Review</h3>
-        <form method="post" id="single-form">
-            <div class="form-group">
-                <label>Select Exam:</label>
-                <select name="exam" id="single-exam" required>
-                    <option value="">-- Select Exam --</option>
-                    {% for exam in exam_files %}
-                    <option value="{{ exam }}" {% if selected_exam == exam %}selected{% endif %}>{{ exam }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Criteria:</label>
-                <select name="criteria" id="single-criteria-file" required>
-                    <option value="">-- Select Criteria --</option>
-                    {% for criteria in criteria_files %}
-                    <option value="{{ criteria }}" {% if selected_criteria == criteria %}selected{% endif %}>{{ criteria }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <button type="button" name="run_single" class="btn btn-success" onclick="runSingleReview()">Run Review</button>
-        </form>
+<div class="card">
+    <div class="form-group">
+        <label>Exam:</label>
+        <select id="exam-select">
+            <option value="">All Exams</option>
+            {% for exam in exam_files %}
+            <option value="{{ exam }}">{{ exam }}</option>
+            {% endfor %}
+        </select>
     </div>
-
-    <div class="card">
-        <h3>Batch Review (All Exams)</h3>
-        <p>Run evaluation for all exams sequentially against a single criteria</p>
-        <div class="form-group">
-            <label>Criteria:</label>
-            <select name="criteria_batch" id="batch-criteria" required>
-                <option value="">-- Select Criteria --</option>
-                {% for criteria in criteria_files %}
-                <option value="{{ criteria }}" {% if selected_criteria == criteria %}selected{% endif %}>{{ criteria }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <button type="button" name="run_all" class="btn btn-success" onclick="runBatchReview()">Run All Exams (Sequential)</button>
-        <p style="margin-top: 0.5rem; color: #666;">Available exams: {{ exam_files|length }}</p>
+    <div class="form-group">
+        <label>Criteria:</label>
+        <select id="criteria-select" onchange="handleCriteriaChange()">
+            <option value="">All Criteria</option>
+            <option value="__annotate_only__">Only Annotate</option>
+            {% for criteria in criteria_files %}
+            <option value="{{ criteria }}">{{ criteria }}</option>
+            {% endfor %}
+        </select>
     </div>
-</div>
-
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
-    <div class="card">
-        <h3>Parallel Review</h3>
-        <p>Run all exams in parallel with multiple threads</p>
-        <div class="form-group">
-            <label>Criteria:</label>
-            <select id="parallel-criteria" required>
-                <option value="">-- Select Criteria --</option>
-                {% for criteria in criteria_files %}
-                <option value="{{ criteria }}">{{ criteria }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="form-group">
-            <label>Number of Threads:</label>
-            <input type="number" id="parallel-threads" value="2" min="1" max="10" class="thread-input">
-        </div>
-        <button type="button" class="btn btn-success" onclick="runParallelReview()">Run Parallel</button>
+    <div class="form-group">
+        <label>Number of Threads:</label>
+        <input type="number" id="threads" value="1" min="1" max="10" class="thread-input">
     </div>
-
-    <div class="card">
-        <h3>Run All Criteria (Batch)</h3>
-        <p>Run all exams against ALL criteria files</p>
-        <div class="form-group">
-            <label>Number of Threads:</label>
-            <input type="number" id="parallel-all-threads" value="2" min="1" max="10" class="thread-input">
-        </div>
-        <button type="button" class="btn btn-success" onclick="runAllCriteriaReview()">Run All Criteria</button>
-        <p style="margin-top: 0.5rem; color: #666;">Available criteria: {{ criteria_files|length }}</p>
+    <div class="form-group" style="background: #fff3cd; padding: 0.75rem; border-radius: 4px; border: 1px solid #ffc107;">
+        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-weight: 500;">
+            <input type="checkbox" id="add-annotations" style="width: 18px; height: 18px;"> 
+            Add Reviewer Annotations
+        </label>
+        <p style="margin-top: 0.3rem; color: #856404; font-size: 0.85rem;">Generates annotated code with //REVIEWER: comments (one per exam)</p>
     </div>
+    <button type="button" class="btn btn-success" onclick="runEvaluation()">Run Evaluation</button>
+    <p style="margin-top: 0.5rem; color: #666;">Available: {{ exam_files|length }} exams, {{ criteria_files|length }} criteria</p>
 </div>
 
 <div id="results-area">
@@ -200,7 +160,6 @@
         <h3>Result</h3>
         <p><strong>Exam:</strong> {{ result.exam_name }}</p>
         <p><strong>Score:</strong> {{ result.overall_score }} / {{ result.maximum_possible_score }}</p>
-        <p><strong>Criteria Evaluated:</strong> {{ result.total_criteria }}</p>
         <a href="/review/{{ result.exam_file }}_review.json" class="btn">View Full Review</a>
     </div>
     {% endif %}
@@ -229,6 +188,18 @@
 let isRunning = false;
 let reviewCancelled = false;
 
+function handleCriteriaChange() {
+    const criteriaSelect = document.getElementById('criteria-select');
+    const annotationCheckbox = document.getElementById('add-annotations');
+    
+    if (criteriaSelect.value === '__annotate_only__') {
+        annotationCheckbox.checked = false;
+        annotationCheckbox.disabled = true;
+    } else {
+        annotationCheckbox.disabled = false;
+    }
+}
+
 function addLog(message, type = 'info') {
     const logWindow = document.getElementById('log-window');
     const now = new Date();
@@ -240,22 +211,22 @@ function addLog(message, type = 'info') {
     logWindow.scrollTop = logWindow.scrollHeight;
 }
 
-function updateProgress(exam, criteria, progress, total, criteriaTotal) {
+function updateProgress(progress, total) {
     const progressEl = document.getElementById('loading-progress');
     const detailEl = document.getElementById('loading-detail');
     const barEl = document.getElementById('loading-bar');
     
-    progressEl.textContent = `Evaluating: ${progress}/${total} exams`;
-    detailEl.textContent = `Exam: ${exam} | Criteria: ${criteria}/${criteriaTotal}`;
+    progressEl.textContent = `Progress: ${progress}/${total}`;
+    detailEl.textContent = `Exam ${progress} of ${total}`;
     
     const percentage = (progress / total) * 100;
     barEl.style.width = percentage + '%';
 }
 
-function showLoading(exam, criteria, progress, total) {
+function showLoading(total) {
     const overlay = document.getElementById('loading-overlay');
     overlay.classList.add('active');
-    updateProgress(exam, criteria, progress, total, 1);
+    updateProgress(0, total);
 }
 
 function hideLoading() {
@@ -273,91 +244,58 @@ function cancelReview() {
     }, 1000);
 }
 
-function runSingleReview() {
-    const exam = document.getElementById('single-exam').value;
-    const criteria = document.getElementById('single-criteria-file').value;
-    
-    if (!exam || !criteria) {
-        alert('Please select both exam and criteria');
-        return;
-    }
-    
-    if (isRunning) return;
-    isRunning = true;
-    reviewCancelled = false;
-    
-    showLoading(exam, criteria, 1, 1);
-    addLog(`Starting single review for: ${exam}`, 'info');
-    addLog(`Using criteria file: ${criteria}`, 'info');
-    
-    fetch('/api/run/single', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({exam_file: exam, criteria_file: criteria})
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (reviewCancelled) return;
-        
-        if (data.success) {
-            addLog(`Review completed successfully!`, 'success');
-            addLog(`Score: ${data.result.overall_score}/${data.result.maximum_possible_score}`, 'success');
-            hideLoading();
-            showResult(data.result);
-            alert('Review completed successfully!');
-        } else {
-            addLog(`Error: ${data.error}`, 'error');
-            hideLoading();
-            alert('Error: ' + data.error);
-        }
-    })
-    .catch(err => {
-        if (reviewCancelled) return;
-        addLog(`Error: ${err}`, 'error');
-        hideLoading();
-        alert('Error: ' + err);
-    });
-}
-
-function runBatchReview() {
-    const criteria = document.getElementById('batch-criteria').value;
-    
-    if (!criteria) {
-        alert('Please select criteria');
-        return;
-    }
-    
+function runAnnotationOnly(exam, threads) {
     if (isRunning) return;
     isRunning = true;
     reviewCancelled = false;
     
     fetch('/api/files/exams')
     .then(response => response.json())
-    .then(data => {
-        const examFiles = data.exams;
+    .then(examData => {
+        const allExams = examData.exams;
+        const selectedExams = exam ? [exam] : allExams;
         
-        if (examFiles.length === 0) {
+        if (selectedExams.length === 0) {
             alert('No exams found');
             hideLoading();
             return;
         }
         
-        const examCount = examFiles.length;
-        addLog(`Starting batch review for ${examCount} exams`, 'info');
-        addLog(`Using criteria: ${criteria}`, 'info');
+        addLog(`Starting annotation only for ${selectedExams.length} exam(s)`, 'info');
+        addLog(`Using ${threads} thread(s)`, 'info');
         
-        showLoading('Loading...', criteria, 1, examCount);
+        showLoading(selectedExams.length);
         
-        let currentExam = 0;
+        let completed = 0;
+        const annotatedExams = new Set();
         
-        function processNextExam() {
-            if (reviewCancelled) {
-                addLog('Batch review cancelled', 'warning');
-                return;
-            }
-            
-            if (currentExam >= examFiles.length) {
-                addLog(`Batch review completed! Processed ${currentExam} exams.`, 'success');
+        function annotateExam(examFile) {
+            return fetch('/api/annotate', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({exam_file: examFile})
+            })
+            .then(response => response.json())
+            .then(data => {
+                completed++;
+                if (data.success) {
+                    addLog(`Annotated: ${examFile} -> ${data.annotated_file}`, 'success');
+                } else {
+                    addLog(`Error: ${examFile} - ${data.error}`, 'error');
+                }
+                updateProgress(completed, selectedExams.length);
+            })
+            .catch(err => {
+                completed++;
+                addLog(`Error: ${examFile} - ${err}`, 'error');
+                updateProgress(completed, selectedExams.length);
+            });
+        }
+        
+        let jobIndex = 0;
+        function processNextBatch() {
+            if (reviewCancelled || jobIndex >= selectedExams.length) {
+                addLog(`Annotation completed! Processed: ${completed}`, 'success');
                 hideLoading();
                 setTimeout(() => {
                     window.location.href = '/reviews';
@@ -365,42 +303,35 @@ function runBatchReview() {
                 return;
             }
             
-            const exam = examFiles[currentExam];
-            addLog(`Processing exam ${currentExam + 1}/${examCount}: ${exam}`, 'info');
+            const batchSize = Math.min(threads, selectedExams.length - jobIndex);
+            const batch = selectedExams.slice(jobIndex, jobIndex + batchSize);
+            jobIndex += batchSize;
             
-            fetch('/api/run/single', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({exam_file: exam, criteria_file: criteria})
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (reviewCancelled) return;
-                
-                if (data.success) {
-                    addLog(`Completed: ${exam} - Score: ${data.result.overall_score}/${data.result.maximum_possible_score}`, 'success');
-                } else {
-                    addLog(`Error processing ${exam}: ${data.error}`, 'error');
-                }
-                
-                currentExam++;
-                updateProgress(exam, 1, currentExam + 1, examCount, 1);
-                processNextExam();
-            })
-            .catch(err => {
-                if (reviewCancelled) return;
-                addLog(`Error: ${err}`, 'error');
-                currentExam++;
-                processNextExam();
-            });
+            Promise.all(batch.map(ex => annotateExam(ex)))
+                .then(() => processNextBatch());
         }
         
-        processNextExam();
+        processNextBatch();
+    })
+    .catch(err => {
+        addLog(`Error: ${err}`, 'error');
+        hideLoading();
+        alert('Error: ' + err);
     });
 }
 
-function runAllCriteriaReview() {
-    const threads = parseInt(document.getElementById('parallel-all-threads').value) || 2;
+function runEvaluation() {
+    const exam = document.getElementById('exam-select').value;
+    const criteria = document.getElementById('criteria-select').value;
+    const threads = parseInt(document.getElementById('threads').value) || 1;
+    const addAnnotations = document.getElementById('add-annotations').checked;
+    
+    const isAnnotateOnly = criteria === '__annotate_only__';
+    
+    if (isAnnotateOnly) {
+        runAnnotationOnly(exam, threads);
+        return;
+    }
     
     if (isRunning) return;
     isRunning = true;
@@ -409,50 +340,87 @@ function runAllCriteriaReview() {
     fetch('/api/files/exams')
     .then(response => response.json())
     .then(examData => {
-        const examFiles = examData.exams;
+        const allExams = examData.exams;
         
         fetch('/api/files/criteria')
         .then(response => response.json())
         .then(criteriaData => {
-            const criteriaFiles = criteriaData.criteria_files;
+            const allCriteria = criteriaData.criteria_files;
             
-            if (examFiles.length === 0) {
+            const selectedExams = exam ? [exam] : allExams;
+            const selectedCriteria = criteria ? [criteria] : allCriteria;
+            
+            if (selectedExams.length === 0) {
                 alert('No exams found');
                 hideLoading();
                 return;
             }
             
-            if (criteriaFiles.length === 0) {
+            if (selectedCriteria.length === 0) {
                 alert('No criteria found');
                 hideLoading();
                 return;
             }
             
-            const totalJobs = examFiles.length * criteriaFiles.length;
-            addLog(`Starting review of ${examFiles.length} exams x ${criteriaFiles.length} criteria = ${totalJobs} jobs`, 'info');
-            addLog(`Using ${threads} threads`, 'info');
+            const jobs = [];
+            for (const ex of selectedExams) {
+                for (const cr of selectedCriteria) {
+                    jobs.push({exam: ex, criteria: cr});
+                }
+            }
             
-            showLoading('Loading...', 'All', 0, totalJobs);
+            let totalOperations = jobs.length;
+            if (addAnnotations) {
+                totalOperations = jobs.length + selectedExams.length;
+            }
+            
+            addLog(`Starting evaluation: ${selectedExams.length} exams x ${selectedCriteria.length} criteria = ${jobs.length} jobs`, 'info');
+            if (addAnnotations) {
+                addLog(`+ ${selectedExams.length} annotation jobs`, 'info');
+            }
+            addLog(`Using ${threads} thread(s)`, 'info');
+            
+            showLoading(totalOperations);
             
             let completedJobs = 0;
             let errors = 0;
+            const annotatedExams = new Set();
             
-            function processJob(exam, criteria) {
+            function processJob(job) {
                 return fetch('/api/run/single', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({exam_file: exam, criteria_file: criteria})
+                    body: JSON.stringify({exam_file: job.exam, criteria_file: job.criteria})
                 })
                 .then(response => response.json())
                 .then(data => {
                     completedJobs++;
                     if (data.success) {
-                        addLog(`Completed: ${exam} + ${criteria} - Score: ${data.result.overall_score}/${data.result.maximum_possible_score}`, 'success');
+                        addLog(`Completed: ${job.exam} + ${job.criteria} - Score: ${data.result.overall_score}/${data.result.maximum_possible_score}`, 'success');
+                        
+                        if (addAnnotations && !annotatedExams.has(job.exam)) {
+                            annotatedExams.add(job.exam);
+                            return fetch('/api/annotate', {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({exam_file: job.exam})
+                            })
+                            .then(annRes => annRes.json())
+                            .then(annData => {
+                                completedJobs++;
+                                if (annData.success) {
+                                    addLog(`Annotated: ${job.exam} -> ${annData.annotated_file}`, 'success');
+                                } else {
+                                    addLog(`Annotation error: ${annData.error}`, 'error');
+                                }
+                                updateProgress(completedJobs, totalOperations);
+                            });
+                        }
                     } else {
                         errors++;
-                        addLog(`Error: ${exam} + ${criteria}: ${data.error}`, 'error');
+                        addLog(`Error: ${job.exam} + ${job.criteria}: ${data.error}`, 'error');
                     }
-                    updateProgress(exam, criteria, completedJobs, totalJobs, criteriaFiles.length);
+                    updateProgress(completedJobs, totalOperations);
                 })
                 .catch(err => {
                     completedJobs++;
@@ -461,17 +429,10 @@ function runAllCriteriaReview() {
                 });
             }
             
-            const jobs = [];
-            for (const exam of examFiles) {
-                for (const criteria of criteriaFiles) {
-                    jobs.push({exam, criteria});
-                }
-            }
-            
             let jobIndex = 0;
             function processNextBatch() {
                 if (reviewCancelled || jobIndex >= jobs.length) {
-                    addLog(`All criteria review completed! Jobs: ${completedJobs}, Errors: ${errors}`, 'success');
+                    addLog(`Evaluation completed! Jobs: ${completedJobs}, Errors: ${errors}`, 'success');
                     hideLoading();
                     setTimeout(() => {
                         window.location.href = '/reviews';
@@ -483,71 +444,18 @@ function runAllCriteriaReview() {
                 const batch = jobs.slice(jobIndex, jobIndex + batchSize);
                 jobIndex += batchSize;
                 
-                Promise.all(batch.map(job => processJob(job.exam, job.criteria)))
+                Promise.all(batch.map(job => processJob(job)))
                     .then(() => processNextBatch());
             }
             
             processNextBatch();
         });
-    });
-}
-
-function runParallelReview() {
-    const criteria = document.getElementById('parallel-criteria').value;
-    const threads = parseInt(document.getElementById('parallel-threads').value) || 2;
-    
-    if (!criteria) {
-        alert('Please select criteria');
-        return;
-    }
-    
-    if (isRunning) return;
-    isRunning = true;
-    reviewCancelled = false;
-    
-    showLoading('Loading...', criteria, 0, 100);
-    addLog(`Starting parallel review with ${threads} threads`, 'info');
-    addLog(`Using criteria: ${criteria}`, 'info');
-    
-    fetch('/api/run/parallel', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({criteria_file: criteria, max_workers: threads})
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (reviewCancelled) return;
-        
-        if (data.success) {
-            addLog(`Parallel review completed!`, 'success');
-            addLog(`Processed: ${data.success_count} exams, Errors: ${data.error_count}`, 'success');
-            hideLoading();
-            setTimeout(() => {
-                window.location.href = '/reviews';
-            }, 1500);
-        } else {
-            addLog(`Error: ${data.error}`, 'error');
-            hideLoading();
-            alert('Error: ' + data.error);
-        }
     })
     .catch(err => {
         addLog(`Error: ${err}`, 'error');
         hideLoading();
+        alert('Error: ' + err);
     });
-}
-
-function showResult(result) {
-    const resultsArea = document.getElementById('results-area');
-    resultsArea.innerHTML = `
-        <div class="card">
-            <h3>Result</h3>
-            <p><strong>Exam:</strong> ${result.exam_name}</p>
-            <p><strong>Score:</strong> ${result.overall_score} / ${result.maximum_possible_score}</p>
-            <p><strong>Criteria Evaluated:</strong> ${result.total_criteria}</p>
-            <a href="/review/${result.exam_file}_review.json" class="btn">View Full Review</a>
-        </div>
-    `;
 }
 </script>
 {% endblock %}
